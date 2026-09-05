@@ -1,27 +1,54 @@
 /* =========================================================
    북한 NEWS Monitor - app.js
-   안정화 버전
-   최신순 + 카테고리 + 원문 바로가기
-   + 기사 대표 이미지 자동 추출
+   안정화 완성 버전
+
+   기능
+   1. 북한 관련 뉴스 RSS
+   2. 최신순 정렬
+   3. 정치/외교
+   4. 군사/안보
+   5. 경제
+   6. 사회/문화
+   7. 기사 저장
+   8. 검색
+   9. 기사 클릭 시 원문 바로가기
+   10. 기사 대표 이미지 표시
+   11. 이미지 없을 경우 기본 이미지 표시
+   12. 네트워크 실패 시 저장된 뉴스 표시
+   13. 5분 자동 업데이트
+   ========================================================= */
+
+
+/* =========================================================
+   RSS 주소
    ========================================================= */
 
 const RSS =
   "https://news.google.com/rss/search?q=" +
-  encodeURIComponent("북한 OR 김정은 OR 북핵 OR 미사일") +
+  encodeURIComponent(
+    "북한 OR 김정은 OR 북핵 OR 미사일"
+  ) +
   "&hl=ko&gl=KR&ceid=KR:ko";
-
-const IMAGE_PROXY =
-  "https://api.allorigins.win/raw?url=";
-
-let news = [];
-let page = "home";
-let cat = "전체";
-
-const main = document.querySelector("#main");
 
 
 /* =========================================================
-   기본 함수
+   기본 상태
+   ========================================================= */
+
+let news = [];
+
+let page = "home";
+
+let cat = "전체";
+
+let isRefreshing = false;
+
+const main =
+  document.querySelector("#main");
+
+
+/* =========================================================
+   안전한 문자열 처리
    ========================================================= */
 
 function esc(value) {
@@ -88,7 +115,6 @@ function formatDate(value) {
   return date.toLocaleString(
     "ko-KR",
     {
-      year: "numeric",
       month: "2-digit",
       day: "2-digit",
       hour: "2-digit",
@@ -100,7 +126,7 @@ function formatDate(value) {
 
 
 /* =========================================================
-   저장 기사
+   저장 기능
    ========================================================= */
 
 function getSaved() {
@@ -109,9 +135,7 @@ function getSaved() {
 
     const data =
       JSON.parse(
-        localStorage.getItem(
-          "saved"
-        ) || "[]"
+        localStorage.getItem("saved") || "[]"
       );
 
     return Array.isArray(data)
@@ -180,18 +204,18 @@ function toggle(item) {
 
 function getCategory(item) {
 
-  const text = (
-    (item.title || "") +
-    " " +
-    (item.description || "")
-  ).toLowerCase();
+  const text =
+    (
+      (item.title || "") +
+      " " +
+      (item.description || "")
+    ).toLowerCase();
 
 
-  /* 군사/안보 */
+  /* 군사/안보를 먼저 검사 */
 
   if (
-    /미사일|탄도미사일|icbm|slbm|핵무기|핵실험|핵탄두|군사|군대|무기|발사|포병|잠수함|전투기|훈련|도발|안보|국방|미군|한미연합|방사포/
-      .test(text)
+    /미사일|탄도미사일|icbm|slbm|핵무기|핵실험|핵탄두|군사|군대|무기|발사|포병|잠수함|전투기|훈련|도발|안보|국방|미군|한미연합|방사포|미사일시험/.test(text)
   ) {
 
     return "군사/안보";
@@ -199,23 +223,10 @@ function getCategory(item) {
   }
 
 
-  /* 정치/외교 */
-
-  if (
-    /김정은|정치|외교|정상회담|회담|정상|북한|남북|통일|정부|대통령|미국|중국|러시아|일본|외무성|외무|대사|국무|당대회|노동당|지도자/
-      .test(text)
-  ) {
-
-    return "정치/외교";
-
-  }
-
-
   /* 경제 */
 
   if (
-    /경제|무역|시장|식량|농업|산업|수출|수입|제재|금융|화폐|공장|기업|농산물|물가|경제협력/
-      .test(text)
+    /경제|무역|시장|식량|농업|산업|수출|수입|제재|금융|화폐|공장|기업|농산물|물가|경제협력|외화/.test(text)
   ) {
 
     return "경제";
@@ -226,14 +237,26 @@ function getCategory(item) {
   /* 사회/문화 */
 
   if (
-    /사회|문화|교육|학교|학생|체육|스포츠|예술|공연|주민|생활|보건|의료|병원|관광|영화|음악/
-      .test(text)
+    /사회|문화|교육|학교|학생|체육|스포츠|예술|공연|주민|생활|보건|의료|병원|관광|영화|음악|문화예술/.test(text)
   ) {
 
     return "사회/문화";
 
   }
 
+
+  /* 정치/외교 */
+
+  if (
+    /김정은|정치|외교|정상회담|회담|정상|북한|남북|통일|정부|대통령|미국|중국|러시아|일본|외무성|외무|대사|국무|당대회|노동당|지도자|한반도/.test(text)
+  ) {
+
+    return "정치/외교";
+
+  }
+
+
+  /* 기본값 */
 
   return "정치/외교";
 
@@ -243,12 +266,12 @@ function getCategory(item) {
 function match(item, category) {
 
   if (category === "전체") {
-
     return true;
-
   }
 
-  return getCategory(item) === category;
+  return (
+    getCategory(item) === category
+  );
 
 }
 
@@ -261,21 +284,39 @@ const FALLBACK_IMAGE =
   "data:image/svg+xml;charset=UTF-8," +
   encodeURIComponent(`
     <svg xmlns="http://www.w3.org/2000/svg"
-         width="600"
-         height="800"
-         viewBox="0 0 600 800">
+         width="800"
+         height="500"
+         viewBox="0 0 800 500">
 
       <rect
-        width="600"
-        height="800"
+        width="800"
+        height="500"
         fill="#dfe5ef"/>
 
+      <rect
+        x="40"
+        y="40"
+        width="720"
+        height="420"
+        rx="35"
+        fill="#cbd5e1"/>
+
       <text
-        x="300"
-        y="430"
+        x="400"
+        y="235"
         text-anchor="middle"
-        font-size="120">
+        font-size="85">
         🇰🇵
+      </text>
+
+      <text
+        x="400"
+        y="330"
+        text-anchor="middle"
+        font-size="30"
+        font-family="Arial, sans-serif"
+        fill="#334155">
+        북한 NEWS
       </text>
 
     </svg>
@@ -283,88 +324,195 @@ const FALLBACK_IMAGE =
 
 
 /* =========================================================
-   RSS 내부 이미지 추출
+   이미지 URL 정리
    ========================================================= */
 
-function extractImageFromDescription(html) {
+function cleanImageUrl(url) {
+
+  if (!url) {
+    return "";
+  }
+
+  let value =
+    String(url).trim();
+
+  if (!value) {
+    return "";
+  }
+
+  /* HTML entity */
+
+  value =
+    value
+      .replace(/&amp;/g, "&")
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'");
+
+  /* protocol-relative URL */
+
+  if (
+    value.startsWith("//")
+  ) {
+
+    value =
+      "https:" + value;
+
+  }
+
+  return value;
+
+}
+
+
+/* =========================================================
+   description에서 이미지 추출
+   ========================================================= */
+
+function extractImageFromHTML(html) {
 
   if (!html) {
+    return "";
+  }
+
+  try {
+
+    const box =
+      document.createElement("div");
+
+    box.innerHTML = html;
+
+    const img =
+      box.querySelector("img");
+
+    if (!img) {
+      return "";
+    }
+
+    return cleanImageUrl(
+      img.getAttribute("src") ||
+      img.getAttribute("data-src") ||
+      img.getAttribute("data-original") ||
+      ""
+    );
+
+  } catch (e) {
 
     return "";
 
   }
 
-  try {
-
-    const temp =
-      document.createElement(
-        "div"
-      );
-
-    temp.innerHTML = html;
-
-    const img =
-      temp.querySelector(
-        "img"
-      );
-
-    if (img) {
-
-      return (
-        img.getAttribute("src") ||
-        img.getAttribute("data-src") ||
-        img.getAttribute("data-original") ||
-        ""
-      );
-
-    }
-
-  } catch (e) {}
-
-  return "";
-
 }
 
 
+/* =========================================================
+   이미지 추출
+   ========================================================= */
+
 function getImage(item) {
+
+  if (!item) {
+    return "";
+  }
+
+
+  /* 1 */
 
   if (item.image) {
 
-    return item.image;
+    const url =
+      cleanImageUrl(item.image);
+
+    if (url) {
+      return url;
+    }
 
   }
+
+
+  /* 2 */
 
   if (item.thumbnail) {
 
-    return item.thumbnail;
+    const url =
+      cleanImageUrl(item.thumbnail);
+
+    if (url) {
+      return url;
+    }
 
   }
 
-  if (
-    item.enclosure &&
-    item.enclosure.link
-  ) {
 
-    return item.enclosure.link;
+  /* 3 */
+
+  if (item.enclosure) {
+
+    if (
+      typeof item.enclosure === "string"
+    ) {
+
+      const url =
+        cleanImageUrl(
+          item.enclosure
+        );
+
+      if (url) {
+        return url;
+      }
+
+    }
+
+    if (
+      typeof item.enclosure === "object"
+    ) {
+
+      const url =
+        cleanImageUrl(
+          item.enclosure.link ||
+          item.enclosure.url ||
+          ""
+        );
+
+      if (url) {
+        return url;
+      }
+
+    }
 
   }
+
+
+  /* 4 */
 
   if (item.mediaContent) {
 
-    return item.mediaContent;
+    const url =
+      cleanImageUrl(
+        item.mediaContent
+      );
+
+    if (url) {
+      return url;
+    }
 
   }
 
-  const descriptionImage =
-    extractImageFromDescription(
-      item.description || ""
-    );
 
-  if (descriptionImage) {
+  /* 5 */
 
-    return descriptionImage;
+  if (item.description) {
+
+    const url =
+      extractImageFromHTML(
+        item.description
+      );
+
+    if (url) {
+      return url;
+    }
 
   }
+
 
   return "";
 
@@ -388,8 +536,8 @@ function cats() {
   return `
     <div class="cats">
 
-      ${categories
-        .map(function (c) {
+      ${categories.map(
+        function (c) {
 
           return `
             <button
@@ -406,8 +554,8 @@ function cats() {
             </button>
           `;
 
-        })
-        .join("")}
+        }
+      ).join("")}
 
     </div>
   `;
@@ -450,17 +598,19 @@ function card(item) {
             data-save-link="${esc(item.link)}"
             aria-label="기사 저장">
 
-            ${saved ? "🔖" : "♡"}
+            ${
+              saved
+                ? "🔖"
+                : "♡"
+            }
 
           </button>
 
         </div>
 
-
         <h3 class="news-title">
           ${esc(item.title)}
         </h3>
-
 
         <div class="source">
 
@@ -473,9 +623,7 @@ function card(item) {
             item.pub
               ? " · " +
                 esc(
-                  formatDate(
-                    item.pub
-                  )
+                  formatDate(item.pub)
                 )
               : ""
           }
@@ -490,10 +638,14 @@ function card(item) {
         <img
           class="news-image"
           src="${esc(image)}"
-          data-article-image="${esc(item.link)}"
           alt=""
           loading="lazy"
-          onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}'">
+          referrerpolicy="no-referrer"
+          onerror="
+            this.onerror=null;
+            this.src='${FALLBACK_IMAGE}'
+          "
+        >
 
       </div>
 
@@ -519,7 +671,7 @@ function list(items) {
 
         표시할 기사가 없습니다.<br>
 
-        새로고침을 눌러 다시 확인해 주세요.
+        잠시 후 새로고침해 주세요.
 
       </div>
     `;
@@ -549,15 +701,13 @@ function list(items) {
 
 
 /* =========================================================
-   화면 렌더링
+   화면
    ========================================================= */
 
 function render() {
 
   document
-    .querySelectorAll(
-      "nav button"
-    )
+    .querySelectorAll("nav button")
     .forEach(
       function (button) {
 
@@ -574,7 +724,9 @@ function render() {
     '<div class="content">';
 
 
-  /* 홈 */
+  /* =======================================================
+     홈
+     ======================================================= */
 
   if (page === "home") {
 
@@ -620,7 +772,9 @@ function render() {
   }
 
 
-  /* 뉴스 */
+  /* =======================================================
+     뉴스
+     ======================================================= */
 
   else if (page === "news") {
 
@@ -650,7 +804,9 @@ function render() {
   }
 
 
-  /* 저장 */
+  /* =======================================================
+     저장됨
+     ======================================================= */
 
   else if (page === "saved") {
 
@@ -669,7 +825,9 @@ function render() {
   }
 
 
-  /* 알림 */
+  /* =======================================================
+     알림
+     ======================================================= */
 
   else if (page === "alerts") {
 
@@ -681,25 +839,26 @@ function render() {
 
       <div class="card">
 
-        <b>🔔 새 기사 알림</b>
+        <b>
+          🔔 새 기사 알림
+        </b>
 
         <p class="muted">
-
           새로운 북한 관련 기사가
           수집되면 이 화면에서 확인할 수 있습니다.
-
         </p>
 
       </div>
 
       <div class="card">
 
-        <b>자동 업데이트</b>
+        <b>
+          자동 업데이트
+        </b>
 
         <p class="muted">
-
           앱을 열면 최신 뉴스를 확인합니다.
-
+          5분마다 자동으로 업데이트됩니다.
         </p>
 
       </div>
@@ -709,7 +868,9 @@ function render() {
   }
 
 
-  /* 설정 */
+  /* =======================================================
+     설정
+     ======================================================= */
 
   else if (page === "settings") {
 
@@ -721,10 +882,13 @@ function render() {
 
       <div class="card setting-card">
 
-        <b>새 기사 알림</b>
+        <b>
+          새 기사 알림
+        </b>
 
         <input
           type="checkbox"
+          id="notifyToggle"
           ${
             localStorage.getItem(
               "notify"
@@ -732,13 +896,15 @@ function render() {
               ? "checked"
               : ""
           }
-          id="notifyToggle">
+        >
 
       </div>
 
       <div class="card">
 
-        <b>뉴스 소스</b>
+        <b>
+          뉴스 소스
+        </b>
 
         <p class="muted">
           Google News RSS 기반
@@ -748,7 +914,9 @@ function render() {
 
       <div class="card">
 
-        <b>앱 정보</b>
+        <b>
+          앱 정보
+        </b>
 
         <p class="muted">
           북한 NEWS Monitor · PWA v1.0
@@ -761,7 +929,9 @@ function render() {
   }
 
 
-  /* 검색 */
+  /* =======================================================
+     검색
+     ======================================================= */
 
   else if (page === "search") {
 
@@ -785,7 +955,8 @@ function render() {
         <input
           id="q"
           class="input"
-          placeholder="북한, 김정은, 북핵, 미사일">
+          placeholder="북한, 김정은, 북핵, 미사일"
+        >
 
         <button
           type="button"
@@ -805,7 +976,9 @@ function render() {
   }
 
 
-  html += "</div>";
+  html +=
+    "</div>";
+
 
   main.innerHTML =
     html;
@@ -817,15 +990,13 @@ function render() {
 
 
 /* =========================================================
-   기사 원문 열기
+   원문 기사 열기
    ========================================================= */
 
 function openArticle(link) {
 
   if (!link) {
-
     return;
-
   }
 
   window.open(
@@ -838,67 +1009,68 @@ function openArticle(link) {
 
 
 /* =========================================================
-   콘텐츠 이벤트
+   화면 내부 이벤트
    ========================================================= */
 
 function bindContentEvents() {
 
-  /* 카테고리 */
+
+  /* -------------------------------------------------------
+     카테고리
+  ------------------------------------------------------- */
 
   document
-    .querySelectorAll(
-      ".catBtn"
-    )
+    .querySelectorAll(".catBtn")
     .forEach(
       function (button) {
 
-        button.addEventListener(
-          "click",
+        button.onclick =
           function (event) {
 
             event.preventDefault();
+
             event.stopPropagation();
 
             cat =
               button.dataset.category ||
               "전체";
 
-            page = "news";
+            page =
+              "news";
 
             render();
 
-          }
-        );
+          };
 
       }
     );
 
 
-  /* 기사 */
+  /* -------------------------------------------------------
+     기사 클릭
+  ------------------------------------------------------- */
 
   document
-    .querySelectorAll(
-      ".news-card"
-    )
+    .querySelectorAll(".news-card")
     .forEach(
       function (cardElement) {
 
-        cardElement.addEventListener(
-          "click",
+        cardElement.onclick =
           function () {
 
             openArticle(
               cardElement.dataset.link
             );
 
-          }
-        );
+          };
 
       }
     );
 
 
-  /* 저장 */
+  /* -------------------------------------------------------
+     저장
+  ------------------------------------------------------- */
 
   document
     .querySelectorAll(
@@ -907,27 +1079,18 @@ function bindContentEvents() {
     .forEach(
       function (button) {
 
-        button.addEventListener(
-          "click",
+        button.onclick =
           function (event) {
 
             event.preventDefault();
+
             event.stopPropagation();
 
             const link =
               button.dataset.saveLink;
 
-            const item =
+            let item =
               news.find(
-                function (x) {
-
-                  return (
-                    x.link === link
-                  );
-
-                }
-              ) ||
-              getSaved().find(
                 function (x) {
 
                   return (
@@ -937,20 +1100,38 @@ function bindContentEvents() {
                 }
               );
 
+
+            if (!item) {
+
+              item =
+                getSaved().find(
+                  function (x) {
+
+                    return (
+                      x.link === link
+                    );
+
+                  }
+                );
+
+            }
+
+
             if (item) {
 
               toggle(item);
 
             }
 
-          }
-        );
+          };
 
       }
     );
 
 
-  /* 뒤로 */
+  /* -------------------------------------------------------
+     뒤로
+  ------------------------------------------------------- */
 
   const back =
     document.querySelector(
@@ -959,21 +1140,22 @@ function bindContentEvents() {
 
   if (back) {
 
-    back.addEventListener(
-      "click",
+    back.onclick =
       function () {
 
-        page = "home";
+        page =
+          "home";
 
         render();
 
-      }
-    );
+      };
 
   }
 
 
-  /* 검색 */
+  /* -------------------------------------------------------
+     검색 버튼
+  ------------------------------------------------------- */
 
   const searchSubmit =
     document.querySelector(
@@ -982,15 +1164,15 @@ function bindContentEvents() {
 
   if (searchSubmit) {
 
-    searchSubmit.addEventListener(
-      "click",
-      searchQ
-    );
+    searchSubmit.onclick =
+      searchQ;
 
   }
 
 
-  /* 알림 */
+  /* -------------------------------------------------------
+     알림
+  ------------------------------------------------------- */
 
   const notify =
     document.querySelector(
@@ -999,8 +1181,7 @@ function bindContentEvents() {
 
   if (notify) {
 
-    notify.addEventListener(
-      "change",
+    notify.onchange =
       function () {
 
         localStorage.setItem(
@@ -1010,8 +1191,7 @@ function bindContentEvents() {
             : "off"
         );
 
-      }
-    );
+      };
 
   }
 
@@ -1030,9 +1210,7 @@ function searchQ() {
     );
 
   if (!input) {
-
     return;
-
   }
 
   const q =
@@ -1046,6 +1224,7 @@ function searchQ() {
       function (item) {
 
         return (
+
           (
             (item.title || "") +
             " " +
@@ -1055,6 +1234,7 @@ function searchQ() {
           )
             .toLowerCase()
             .includes(q)
+
         );
 
       }
@@ -1079,7 +1259,7 @@ function searchQ() {
 
 
 /* =========================================================
-   fetch
+   네트워크 요청
    ========================================================= */
 
 async function fetchText(url) {
@@ -1093,6 +1273,7 @@ async function fetchText(url) {
       }
     );
 
+
   if (!response.ok) {
 
     throw new Error(
@@ -1102,8 +1283,10 @@ async function fetchText(url) {
 
   }
 
+
   const text =
     await response.text();
+
 
   if (
     !text ||
@@ -1116,73 +1299,123 @@ async function fetchText(url) {
 
   }
 
+
   return text;
 
 }
 
 
 /* =========================================================
-   XML 이미지
+   RSS XML 이미지
    ========================================================= */
 
 function getXMLImage(item) {
+
+
+  /* media:content */
 
   const media =
     item.querySelector(
       "media\\:content, content"
     );
 
-  if (
-    media &&
-    media.getAttribute("url")
-  ) {
 
-    return media.getAttribute(
-      "url"
-    );
+  if (media) {
+
+    const url =
+      cleanImageUrl(
+        media.getAttribute("url")
+      );
+
+    if (url) {
+      return url;
+    }
 
   }
 
+
+  /* media:thumbnail */
+
+  const thumbnail =
+    item.querySelector(
+      "media\\:thumbnail, thumbnail"
+    );
+
+
+  if (thumbnail) {
+
+    const url =
+      cleanImageUrl(
+        thumbnail.getAttribute("url")
+      );
+
+    if (url) {
+      return url;
+    }
+
+  }
+
+
+  /* enclosure */
 
   const enclosure =
     item.querySelector(
       "enclosure"
     );
 
-  if (
-    enclosure &&
-    enclosure.getAttribute(
-      "url"
-    )
-  ) {
 
-    return enclosure.getAttribute(
-      "url"
-    );
+  if (enclosure) {
+
+    const type =
+      enclosure.getAttribute(
+        "type"
+      ) || "";
+
+
+    const url =
+      cleanImageUrl(
+        enclosure.getAttribute(
+          "url"
+        )
+      );
+
+
+    if (
+      url &&
+      (
+        !type ||
+        type.startsWith("image/")
+      )
+    ) {
+
+      return url;
+
+    }
 
   }
 
+
+  /* description */
 
   const description =
     item.querySelector(
       "description"
     );
 
+
   if (description) {
 
-    const image =
-      extractImageFromDescription(
-        description.textContent ||
-        ""
+    const url =
+      extractImageFromHTML(
+        description.textContent || ""
       );
 
-    if (image) {
-
-      return image;
-
+    if (url) {
+      return url;
     }
 
   }
+
 
   return "";
 
@@ -1197,6 +1430,7 @@ function parseRSS(xmlText) {
 
   const parser =
     new DOMParser();
+
 
   const xml =
     parser.parseFromString(
@@ -1248,11 +1482,13 @@ function parseRSS(xmlText) {
             )?.textContent?.trim() ||
             "";
 
+
           const link =
             item.querySelector(
               "link"
             )?.textContent?.trim() ||
             "";
+
 
           const source =
             item.querySelector(
@@ -1260,11 +1496,13 @@ function parseRSS(xmlText) {
             )?.textContent?.trim() ||
             "Google News";
 
+
           const pub =
             item.querySelector(
               "pubDate"
             )?.textContent?.trim() ||
             "";
+
 
           const description =
             item.querySelector(
@@ -1272,17 +1510,31 @@ function parseRSS(xmlText) {
             )?.textContent ||
             "";
 
+
           const image =
             getXMLImage(item);
 
 
           return {
-            title,
-            link,
-            source,
-            pub,
-            description,
-            image
+
+            title:
+              title,
+
+            link:
+              link,
+
+            source:
+              source,
+
+            pub:
+              pub,
+
+            description:
+              description,
+
+            image:
+              image
+
           };
 
         }
@@ -1323,20 +1575,25 @@ async function getFromRSS2JSON() {
 
   const url =
     "https://api.rss2json.com/v1/api.json?rss_url=" +
-    encodeURIComponent(RSS);
+    encodeURIComponent(
+      RSS
+    );
 
 
   const response =
-    await fetchText(url);
+    await fetchText(
+      url
+    );
 
 
   const data =
-    JSON.parse(response);
+    JSON.parse(
+      response
+    );
 
 
   if (
     !data ||
-    data.status !== "ok" ||
     !Array.isArray(
       data.items
     )
@@ -1354,18 +1611,71 @@ async function getFromRSS2JSON() {
       .map(
         function (item) {
 
-          let image =
-            item.thumbnail ||
-            item.enclosure?.link ||
-            "";
+          let image = "";
 
 
-          if (!image) {
+          /* thumbnail */
+
+          if (
+            item.thumbnail
+          ) {
 
             image =
-              extractImageFromDescription(
-                item.description ||
-                ""
+              item.thumbnail;
+
+          }
+
+
+          /* enclosure */
+
+          if (
+            !image &&
+            item.enclosure
+          ) {
+
+            if (
+              typeof item.enclosure ===
+              "string"
+            ) {
+
+              image =
+                item.enclosure;
+
+            } else {
+
+              image =
+                item.enclosure.link ||
+                item.enclosure.url ||
+                "";
+
+            }
+
+          }
+
+
+          /* media */
+
+          if (
+            !image &&
+            item.mediaContent
+          ) {
+
+            image =
+              item.mediaContent;
+
+          }
+
+
+          /* description */
+
+          if (
+            !image &&
+            item.description
+          ) {
+
+            image =
+              extractImageFromHTML(
+                item.description
               );
 
           }
@@ -1395,8 +1705,9 @@ async function getFromRSS2JSON() {
               "",
 
             image:
-              image ||
-              ""
+              cleanImageUrl(
+                image
+              )
 
           };
 
@@ -1431,20 +1742,27 @@ async function getFromRSS2JSON() {
 
 
 /* =========================================================
-   AllOrigins RSS
+   AllOrigins
    ========================================================= */
 
 async function getFromAllOrigins() {
 
   const url =
-    IMAGE_PROXY +
-    encodeURIComponent(RSS);
+    "https://api.allorigins.win/raw?url=" +
+    encodeURIComponent(
+      RSS
+    );
 
 
   const xmlText =
-    await fetchText(url);
+    await fetchText(
+      url
+    );
 
-  return parseRSS(xmlText);
+
+  return parseRSS(
+    xmlText
+  );
 
 }
 
@@ -1456,9 +1774,14 @@ async function getFromAllOrigins() {
 async function getDirect() {
 
   const xmlText =
-    await fetchText(RSS);
+    await fetchText(
+      RSS
+    );
 
-  return parseRSS(xmlText);
+
+  return parseRSS(
+    xmlText
+  );
 
 }
 
@@ -1473,7 +1796,7 @@ function normalizeNews(items) {
     new Map();
 
 
-  items.forEach(
+  (items || []).forEach(
     function (item) {
 
       if (
@@ -1487,21 +1810,43 @@ function normalizeNews(items) {
       }
 
 
-      if (!item.image) {
+      const clean =
+        {
 
-        item.image =
-          item.thumbnail ||
-          item.mediaContent ||
-          "";
+          title:
+            item.title || "",
 
-      }
+          link:
+            item.link || "",
+
+          source:
+            item.source ||
+            "Google News",
+
+          pub:
+            item.pub ||
+            item.pubDate ||
+            "",
+
+          description:
+            item.description ||
+            "",
+
+          image:
+            getImage(item)
+
+        };
 
 
-      if (!map.has(item.link)) {
+      if (
+        !map.has(
+          clean.link
+        )
+      ) {
 
         map.set(
-          item.link,
-          item
+          clean.link,
+          clean
         );
 
       }
@@ -1527,312 +1872,23 @@ function normalizeNews(items) {
 
 
 /* =========================================================
-   원문 페이지에서 og:image 가져오기
-   ========================================================= */
-
-async function getArticleImage(link) {
-
-  if (!link) {
-
-    return "";
-
-  }
-
-
-  try {
-
-    const proxyUrl =
-      IMAGE_PROXY +
-      encodeURIComponent(
-        link
-      );
-
-
-    const response =
-      await fetch(
-        proxyUrl,
-        {
-          method: "GET",
-          cache: "no-store"
-        }
-      );
-
-
-    if (!response.ok) {
-
-      return "";
-
-    }
-
-
-    const html =
-      await response.text();
-
-
-    if (!html) {
-
-      return "";
-
-    }
-
-
-    const doc =
-      new DOMParser()
-        .parseFromString(
-          html,
-          "text/html"
-        );
-
-
-    /*
-       1순위 og:image
-    */
-
-    const og =
-      doc.querySelector(
-        'meta[property="og:image"]'
-      );
-
-    if (
-      og &&
-      og.content
-    ) {
-
-      return og.content;
-
-    }
-
-
-    /*
-       2순위 twitter:image
-    */
-
-    const twitter =
-      doc.querySelector(
-        'meta[name="twitter:image"]'
-      );
-
-    if (
-      twitter &&
-      twitter.content
-    ) {
-
-      return twitter.content;
-
-    }
-
-
-    /*
-       3순위 첫 번째 큰 이미지
-    */
-
-    const images =
-      Array.from(
-        doc.querySelectorAll(
-          "img"
-        )
-      );
-
-
-    for (
-      const img of images
-    ) {
-
-      const src =
-        img.getAttribute(
-          "src"
-        ) ||
-        img.getAttribute(
-          "data-src"
-        ) ||
-        img.getAttribute(
-          "data-original"
-        ) ||
-        "";
-
-      if (
-        src &&
-        /^https?:\/\//i.test(
-          src
-        )
-      ) {
-
-        return src;
-
-      }
-
-    }
-
-  } catch (error) {
-
-    console.log(
-      "대표 이미지 추출 실패:",
-      link,
-      error
-    );
-
-  }
-
-
-  return "";
-
-}
-
-
-/* =========================================================
-   대표 이미지 자동 로딩
-   ========================================================= */
-
-async function loadArticleImages() {
-
-  /*
-     한 번에 너무 많은 원문을 호출하지 않도록
-     최신 기사 15개까지만 대표사진 검색
-  */
-
-  const targets =
-    news
-      .filter(
-        function (item) {
-
-          return (
-            item &&
-            item.link
-          );
-
-        }
-      )
-      .slice(0, 15);
-
-
-  /*
-     이미 실제 이미지가 있는 기사는 제외
-  */
-
-  const needImage =
-    targets.filter(
-      function (item) {
-
-        return !item.image;
-
-      }
-    );
-
-
-  if (
-    needImage.length === 0
-  ) {
-
-    return;
-
-  }
-
-
-  /*
-     동시에 너무 많이 호출하지 않도록
-     5개씩 처리
-  */
-
-  for (
-    let i = 0;
-    i < needImage.length;
-    i += 5
-  ) {
-
-    const batch =
-      needImage.slice(
-        i,
-        i + 5
-      );
-
-
-    await Promise.all(
-      batch.map(
-        async function (item) {
-
-          try {
-
-            const image =
-              await getArticleImage(
-                item.link
-              );
-
-
-            if (image) {
-
-              item.image =
-                image;
-
-
-              /*
-                 화면에 이미 표시된 카드도
-                 즉시 교체
-              */
-
-              const img =
-                document.querySelector(
-                  '[data-article-image="' +
-                  CSS.escape(
-                    item.link
-                  ) +
-                  '"]'
-                );
-
-
-              if (img) {
-
-                img.src =
-                  image;
-
-              }
-
-            }
-
-          } catch (error) {
-
-            console.log(
-              "이미지 처리 실패:",
-              error
-            );
-
-          }
-
-        }
-      )
-    );
-
-  }
-
-
-  /*
-     이미지가 새로 들어온 기사 정보 저장
-  */
-
-  localStorage.setItem(
-    "news",
-    JSON.stringify(news)
-  );
-
-}
-
-
-/* =========================================================
    뉴스 적용
    ========================================================= */
 
 function applyNews(result) {
 
   const normalized =
-    normalizeNews(result);
+    normalizeNews(
+      result
+    );
 
 
   if (
-    !normalized ||
     normalized.length === 0
   ) {
 
     throw new Error(
-      "정리된 기사 없음"
+      "기사 데이터 없음"
     );
 
   }
@@ -1858,27 +1914,18 @@ function applyNews(result) {
 
     status.textContent =
       "마지막 업데이트: " +
-      new Date()
-        .toLocaleTimeString(
-          "ko-KR",
-          {
-            hour: "2-digit",
-            minute: "2-digit"
-          }
-        );
+      new Date().toLocaleTimeString(
+        "ko-KR",
+        {
+          hour: "2-digit",
+          minute: "2-digit"
+        }
+      );
 
   }
 
 
   render();
-
-
-  /*
-     화면을 먼저 보여주고
-     대표사진을 뒤에서 가져옵니다.
-  */
-
-  loadArticleImages();
 
 }
 
@@ -1888,6 +1935,14 @@ function applyNews(result) {
    ========================================================= */
 
 async function refresh() {
+
+  if (isRefreshing) {
+    return;
+  }
+
+
+  isRefreshing = true;
+
 
   const status =
     document.querySelector(
@@ -1903,70 +1958,99 @@ async function refresh() {
   }
 
 
-  /* 1. RSS2JSON */
+  /* -------------------------------------------------------
+     1. RSS2JSON
+  ------------------------------------------------------- */
 
   try {
 
     const result =
       await getFromRSS2JSON();
 
-    applyNews(result);
+
+    applyNews(
+      result
+    );
+
+
+    isRefreshing =
+      false;
 
     return;
 
   } catch (error) {
 
     console.log(
-      "RSS2JSON 실패:",
+      "RSS2JSON 실패",
       error
     );
 
   }
 
 
-  /* 2. AllOrigins */
+  /* -------------------------------------------------------
+     2. AllOrigins
+  ------------------------------------------------------- */
 
   try {
 
     const result =
       await getFromAllOrigins();
 
-    applyNews(result);
+
+    applyNews(
+      result
+    );
+
+
+    isRefreshing =
+      false;
 
     return;
 
   } catch (error) {
 
     console.log(
-      "AllOrigins 실패:",
+      "AllOrigins 실패",
       error
     );
 
   }
 
 
-  /* 3. 직접 RSS */
+  /* -------------------------------------------------------
+     3. 직접 RSS
+  ------------------------------------------------------- */
 
   try {
 
     const result =
       await getDirect();
 
-    applyNews(result);
+
+    applyNews(
+      result
+    );
+
+
+    isRefreshing =
+      false;
 
     return;
 
   } catch (error) {
 
     console.log(
-      "직접 RSS 실패:",
+      "직접 RSS 실패",
       error
     );
 
   }
 
 
-  /* 4. 저장된 뉴스 */
+  /* -------------------------------------------------------
+     4. 기존 데이터
+  ------------------------------------------------------- */
 
   try {
 
@@ -2006,11 +2090,15 @@ async function refresh() {
 
   render();
 
+
+  isRefreshing =
+    false;
+
 }
 
 
 /* =========================================================
-   상단 버튼
+   상단 새로고침
    ========================================================= */
 
 const refreshButton =
@@ -2018,48 +2106,62 @@ const refreshButton =
     "#refresh"
   );
 
+
 if (refreshButton) {
 
-  refreshButton.addEventListener(
-    "click",
-    refresh
-  );
+  refreshButton.onclick =
+    function () {
+
+      refresh();
+
+    };
 
 }
 
+
+/* =========================================================
+   지금 새로고침
+   ========================================================= */
 
 const quickButton =
   document.querySelector(
     "#quick"
   );
 
+
 if (quickButton) {
 
-  quickButton.addEventListener(
-    "click",
-    refresh
-  );
+  quickButton.onclick =
+    function () {
+
+      refresh();
+
+    };
 
 }
 
+
+/* =========================================================
+   검색
+   ========================================================= */
 
 const searchButton =
   document.querySelector(
     "#search"
   );
 
+
 if (searchButton) {
 
-  searchButton.addEventListener(
-    "click",
+  searchButton.onclick =
     function () {
 
-      page = "search";
+      page =
+        "search";
 
       render();
 
-    }
-  );
+    };
 
 }
 
@@ -2075,17 +2177,16 @@ document
   .forEach(
     function (button) {
 
-      button.addEventListener(
-        "click",
+      button.onclick =
         function () {
 
           page =
-            button.dataset.p;
+            button.dataset.p ||
+            "home";
 
           render();
 
-        }
-      );
+        };
 
     }
   );
@@ -2118,7 +2219,7 @@ if (
 
 
 /* =========================================================
-   기존 뉴스
+   기존 뉴스 불러오기
    ========================================================= */
 
 try {
@@ -2152,10 +2253,15 @@ try {
 
 
 /* =========================================================
-   최초 실행
+   최초 화면
    ========================================================= */
 
 render();
+
+
+/* =========================================================
+   앱 시작
+   ========================================================= */
 
 refresh();
 
@@ -2165,6 +2271,10 @@ refresh();
    ========================================================= */
 
 setInterval(
-  refresh,
+  function () {
+
+    refresh();
+
+  },
   5 * 60 * 1000
 );
