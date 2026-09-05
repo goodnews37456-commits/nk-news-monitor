@@ -1,1 +1,975 @@
-*{box-sizing:border-box}body{margin:0;background:#f6f7f9;color:#121826;font-family:system-ui,-apple-system,"Noto Sans KR",sans-serif}.app{max-width:720px;margin:auto;min-height:100vh;padding-bottom:72px}header{background:#071e49;color:#fff;padding:14px 16px 10px;position:sticky;top:0;z-index:5}.brand{display:flex;align-items:center;gap:10px}.brand>b{font-size:30px}.brand h1{margin:0;font-size:23px}.brand small{color:#bdc8d9}.actions{position:absolute;right:8px;top:8px}.actions button{background:none;border:0;color:#fff;font-size:29px;width:44px}.status{border-top:1px solid #fff2;margin-top:10px;padding-top:9px;display:flex;gap:7px;align-items:center;font-size:12px}.status i{width:8px;height:8px;background:#29d16f;border-radius:50%}.status button{margin-left:auto;background:none;border:0;color:#fff}.content{padding:12px 13px}.card{background:#fff;border-radius:13px;padding:14px;margin:8px 0;box-shadow:0 2px 8px #071e4910}.notice{display:flex;gap:12px;align-items:center}.notice b{font-size:16px}.muted{color:#6d7480;font-size:12px}.cats{display:flex;gap:6px;overflow:auto;padding:5px 0}.cats button{white-space:nowrap;border:1px solid #e2e5ea;background:#fff;border-radius:20px;padding:9px 12px}.cats .on{background:#071e49;color:#fff}.article{cursor:pointer}.top{display:flex}.new{background:#e83c3c;color:#fff;font-size:10px;font-weight:800;border-radius:5px;padding:4px 6px}.save{margin-left:auto;border:0;background:none;font-size:20px}.article h3{font-size:16px;line-height:1.45;margin:8px 0}.source{color:#184da8;font-size:12px}.title{font-size:23px;font-weight:800;margin:8px 0 12px}.back{border:0;background:none;color:#184da8;font-size:15px;padding:8px 0}.detail h2{font-size:24px;line-height:1.4}.btn{width:100%;padding:13px;border:0;border-radius:10px;background:#071e49;color:#fff;font-size:15px;margin-top:8px}.input{width:100%;padding:13px;border:1px solid #ddd;border-radius:10px;font-size:15px}.row{display:flex;gap:8px}.empty{text-align:center;color:#6d7480;padding:35px 10px}nav{position:fixed;bottom:0;left:0;right:0;margin:auto;max-width:720px;height:70px;background:#fff;border-top:1px solid #e6e8ec;display:flex;z-index:10}nav button{flex:1;border:0;background:none;color:#6d7480;font-size:22px}nav button.active{color:#184da8}nav small{display:block;font-size:10px}
+/* =========================================================
+   북한 NEWS Monitor - styles.css
+   ========================================================= */
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100%;
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Noto Sans KR",
+    "Malgun Gothic",
+    sans-serif;
+  background: #f4f6f9;
+  color: #111827;
+}
+
+
+body {
+  overflow-x: hidden;
+}
+
+
+button,
+input {
+  font: inherit;
+}
+
+
+button {
+  cursor: pointer;
+}
+
+
+/* =========================================================
+   전체 앱
+   ========================================================= */
+
+.app {
+  min-height: 100vh;
+  background: #f4f6f9;
+}
+
+
+/* =========================================================
+   상단 헤더
+   ========================================================= */
+
+header {
+  background: #071e49;
+  color: white;
+  padding:
+    28px
+    32px
+    0
+    32px;
+}
+
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-height: 90px;
+}
+
+
+.brand > b {
+  font-size: 48px;
+  line-height: 1;
+}
+
+
+.brand h1 {
+  margin: 0;
+  font-size: 34px;
+  line-height: 1.15;
+  font-weight: 800;
+  letter-spacing: -1.5px;
+}
+
+
+.brand small {
+  display: block;
+  margin-top: 5px;
+  font-size: 19px;
+  color: #c8d2e5;
+}
+
+
+.actions {
+  position: absolute;
+  right: 30px;
+  top: 28px;
+  display: flex;
+  gap: 10px;
+}
+
+
+.actions button {
+  width: 48px;
+  height: 48px;
+  border: 0;
+  background: transparent;
+  color: white;
+  font-size: 38px;
+  line-height: 1;
+  padding: 0;
+}
+
+
+.actions button:active {
+  transform: scale(.9);
+}
+
+
+/* =========================================================
+   상태 표시
+   ========================================================= */
+
+.status {
+  min-height: 76px;
+  margin-top: 18px;
+  border-top: 1px solid rgba(255,255,255,.15);
+
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  font-size: 19px;
+  color: #f1f4fa;
+}
+
+
+.status i {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #25d366;
+  display: block;
+  flex: 0 0 auto;
+}
+
+
+.status button {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: white;
+  font-size: 19px;
+  font-weight: 600;
+  padding: 12px 0 12px 20px;
+}
+
+
+.status button:active {
+  opacity: .65;
+}
+
+
+/* =========================================================
+   메인
+   ========================================================= */
+
+main {
+  min-height: calc(100vh - 230px);
+  padding-bottom: 110px;
+}
+
+
+.content {
+  padding: 38px 26px 50px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+
+/* =========================================================
+   제목
+   ========================================================= */
+
+.title {
+  margin-bottom: 28px;
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  color: #111827;
+}
+
+
+/* =========================================================
+   알림 카드
+   ========================================================= */
+
+.notice {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 26px;
+}
+
+
+.notice-icon {
+  font-size: 40px;
+  line-height: 1;
+}
+
+
+.notice b {
+  display: block;
+  font-size: 26px;
+  line-height: 1.3;
+}
+
+
+.muted {
+  color: #7a808a;
+}
+
+
+.notice .muted {
+  margin-top: 5px;
+  font-size: 18px;
+}
+
+
+/* =========================================================
+   카드 공통
+   ========================================================= */
+
+.card {
+  background: white;
+  border-radius: 25px;
+  margin-bottom: 16px;
+  padding: 26px;
+  box-shadow:
+    0 3px 14px rgba(20, 32, 50, .06);
+}
+
+
+/* =========================================================
+   카테고리
+   ========================================================= */
+
+.cats {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+
+  padding:
+    0
+    0
+    10px
+    0;
+
+  margin-bottom: 18px;
+
+  scrollbar-width: thin;
+  scrollbar-color: #b9bcc1 transparent;
+}
+
+
+.cats::-webkit-scrollbar {
+  height: 7px;
+}
+
+
+.cats::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+
+.cats::-webkit-scrollbar-thumb {
+  background: #b8bbc0;
+  border-radius: 20px;
+}
+
+
+.category-btn {
+  flex: 0 0 auto;
+
+  min-height: 58px;
+
+  padding:
+    0
+    24px;
+
+  border-radius: 30px;
+
+  border: 1px solid #dfe2e7;
+
+  background: white;
+
+  color: #17191d;
+
+  font-size: 20px;
+
+  white-space: nowrap;
+
+  transition:
+    background .15s,
+    color .15s,
+    transform .1s;
+}
+
+
+.category-btn:active {
+  transform: scale(.97);
+}
+
+
+.category-btn.on {
+  background: #071e49;
+  border-color: #071e49;
+  color: white;
+}
+
+
+/* =========================================================
+   기사 카드
+   ========================================================= */
+
+.news-card {
+  padding: 0;
+  overflow: hidden;
+  cursor: pointer;
+  transition:
+    transform .12s,
+    box-shadow .12s;
+}
+
+
+.news-card:active {
+  transform: scale(.985);
+}
+
+
+.article-body {
+  display: flex;
+  align-items: stretch;
+  min-height: 190px;
+}
+
+
+/* =========================================================
+   기사 왼쪽 영역
+   ========================================================= */
+
+.article-info {
+  flex: 1 1 auto;
+  min-width: 0;
+
+  padding:
+    26px
+    14px
+    25px
+    26px;
+
+  display: flex;
+  flex-direction: column;
+}
+
+
+/* =========================================================
+   기사 상단
+   ========================================================= */
+
+.article-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  margin-bottom: 15px;
+}
+
+
+.category-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 40px;
+
+  padding:
+    0
+    13px;
+
+  border-radius: 8px;
+
+  background: #ed3b3b;
+
+  color: white;
+
+  font-size: 16px;
+
+  font-weight: 800;
+
+  white-space: nowrap;
+}
+
+
+/* =========================================================
+   저장 버튼
+   ========================================================= */
+
+.save {
+  width: 42px;
+  height: 42px;
+
+  padding: 0;
+
+  border: 0;
+
+  background: transparent;
+
+  color: #111;
+
+  font-size: 33px;
+
+  line-height: 1;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+
+.save:active {
+  transform: scale(.85);
+}
+
+
+/* =========================================================
+   기사 제목
+   ========================================================= */
+
+.news-card h3 {
+  margin:
+    0
+    0
+    18px;
+
+  color: #111827;
+
+  font-size: 24px;
+
+  line-height: 1.42;
+
+  font-weight: 800;
+
+  letter-spacing: -.6px;
+
+  word-break: keep-all;
+
+  overflow-wrap: anywhere;
+}
+
+
+/* =========================================================
+   출처
+   ========================================================= */
+
+.source {
+  margin-top: auto;
+
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+
+  color: #315f9d;
+
+  font-size: 15px;
+
+  line-height: 1.4;
+}
+
+
+/* =========================================================
+   오른쪽 기사 사진
+   ========================================================= */
+
+.thumb {
+  position: relative;
+
+  flex: 0 0 145px;
+
+  width: 145px;
+
+  min-height: 190px;
+
+  margin:
+    20px
+    20px
+    20px
+    0;
+
+  border-radius: 17px;
+
+  overflow: hidden;
+
+  background:
+    linear-gradient(
+      135deg,
+      #dfe5ee,
+      #cbd3df
+    );
+}
+
+
+.thumb img {
+  display: block;
+
+  width: 100%;
+  height: 100%;
+
+  min-height: 150px;
+
+  object-fit: cover;
+}
+
+
+.image-fallback {
+  position: absolute;
+
+  inset: 0;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  font-size: 45px;
+
+  background:
+    linear-gradient(
+      135deg,
+      #dfe5ee,
+      #cbd3df
+    );
+}
+
+
+.thumb img + .image-fallback {
+  opacity: 0;
+}
+
+
+.thumb.no-image .image-fallback {
+  opacity: 1;
+}
+
+
+/* =========================================================
+   빈 화면
+   ========================================================= */
+
+.empty {
+  padding:
+    80px
+    20px;
+
+  text-align: center;
+
+  color: #7c828b;
+
+  font-size: 22px;
+
+  line-height: 1.7;
+}
+
+
+/* =========================================================
+   버튼
+   ========================================================= */
+
+.btn {
+  width: 100%;
+
+  min-height: 56px;
+
+  margin-top: 12px;
+
+  border: 0;
+
+  border-radius: 15px;
+
+  background: #071e49;
+
+  color: white;
+
+  font-size: 18px;
+
+  font-weight: 700;
+}
+
+
+.btn:active {
+  transform: scale(.98);
+}
+
+
+/* =========================================================
+   검색
+   ========================================================= */
+
+.row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+
+.input {
+  flex: 1;
+
+  min-width: 0;
+
+  height: 56px;
+
+  padding:
+    0
+    17px;
+
+  border:
+    1px solid #d8dce2;
+
+  border-radius: 14px;
+
+  background: white;
+
+  color: #111827;
+
+  font-size: 17px;
+
+  outline: none;
+}
+
+
+.input:focus {
+  border-color: #071e49;
+  box-shadow:
+    0 0 0 3px rgba(7,30,73,.08);
+}
+
+
+.search-btn {
+  flex: 0 0 90px;
+
+  width: 90px;
+
+  margin: 0;
+
+  min-height: 56px;
+}
+
+
+/* =========================================================
+   뒤로가기
+   ========================================================= */
+
+.back {
+  border: 0;
+
+  background: transparent;
+
+  color: #315f9d;
+
+  font-size: 19px;
+
+  font-weight: 700;
+
+  padding:
+    0
+    0
+    20px;
+
+}
+
+
+/* =========================================================
+   설정
+   ========================================================= */
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+
+.setting-row input {
+  width: 24px;
+  height: 24px;
+}
+
+
+/* =========================================================
+   하단 네비게이션
+   ========================================================= */
+
+nav {
+  position: fixed;
+
+  left: 0;
+  right: 0;
+  bottom: 0;
+
+  z-index: 100;
+
+  height: 108px;
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(5, 1fr);
+
+  background: rgba(255,255,255,.98);
+
+  border-top:
+    1px solid #e1e3e7;
+
+  padding-bottom:
+    env(safe-area-inset-bottom);
+}
+
+
+nav button {
+  border: 0;
+
+  background: transparent;
+
+  color: #777d86;
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+
+  justify-content: center;
+
+  gap: 4px;
+
+  font-size: 38px;
+
+  line-height: 1;
+
+  padding: 8px 0;
+}
+
+
+nav button small {
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+
+nav button.active {
+  color: #2862a2;
+}
+
+
+nav button:active {
+  transform: scale(.92);
+}
+
+
+/* =========================================================
+   작은 화면
+   ========================================================= */
+
+@media (max-width: 600px) {
+
+  header {
+    padding:
+      24px
+      24px
+      0;
+  }
+
+
+  .brand {
+    min-height: 82px;
+    gap: 14px;
+  }
+
+
+  .brand > b {
+    font-size: 39px;
+  }
+
+
+  .brand h1 {
+    font-size: 30px;
+  }
+
+
+  .brand small {
+    font-size: 17px;
+  }
+
+
+  .actions {
+    right: 18px;
+    top: 24px;
+  }
+
+
+  .actions button {
+    width: 43px;
+    height: 43px;
+    font-size: 34px;
+  }
+
+
+  .status {
+    font-size: 17px;
+    min-height: 70px;
+  }
+
+
+  .status button {
+    font-size: 17px;
+  }
+
+
+  .content {
+    padding:
+      28px
+      24px
+      40px;
+  }
+
+
+  .notice {
+    padding: 25px;
+  }
+
+
+  .notice b {
+    font-size: 23px;
+  }
+
+
+  .notice .muted {
+    font-size: 16px;
+  }
+
+
+  .title {
+    font-size: 30px;
+  }
+
+
+  .category-btn {
+    min-height: 56px;
+    padding: 0 21px;
+    font-size: 18px;
+  }
+
+
+  .article-body {
+    min-height: 170px;
+  }
+
+
+  .article-info {
+    padding:
+      22px
+      8px
+      22px
+      22px;
+  }
+
+
+  .thumb {
+    flex-basis: 125px;
+    width: 125px;
+    min-height: 150px;
+
+    margin:
+      18px
+      18px
+      18px
+      0;
+  }
+
+
+  .news-card h3 {
+    font-size: 21px;
+    line-height: 1.42;
+    margin-bottom: 14px;
+  }
+
+
+  .category-badge {
+    min-height: 36px;
+    padding: 0 10px;
+    font-size: 14px;
+  }
+
+
+  .save {
+    font-size: 30px;
+  }
+
+
+  .source {
+    font-size: 13px;
+  }
+
+
+  nav {
+    height: 100px;
+  }
+
+
+  nav button {
+    font-size: 34px;
+  }
+
+
+  nav button small {
+    font-size: 13px;
+  }
+
+}
+
+
+/* =========================================================
+   아주 작은 화면
+   ========================================================= */
+
+@media (max-width: 390px) {
+
+  .content {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+
+  .article-info {
+    padding-left: 18px;
+  }
+
+
+  .thumb {
+    flex-basis: 108px;
+    width: 108px;
+    margin-right: 14px;
+  }
+
+
+  .news-card h3 {
+    font-size: 19px;
+  }
+
+
+  .category-badge {
+    font-size: 13px;
+  }
+
+}
