@@ -1,10 +1,15 @@
 /* =========================================================
    북한 NEWS Monitor - styles.css
+   기사 이미지 오른쪽 배치 버전
+   ========================================================= */
+
+
+/* =========================================================
+   기본
    ========================================================= */
 
 * {
   box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
 }
 
 
@@ -14,13 +19,15 @@ body {
   padding: 0;
   width: 100%;
   min-height: 100%;
+
   font-family:
     -apple-system,
     BlinkMacSystemFont,
     "Noto Sans KR",
     "Malgun Gothic",
     sans-serif;
-  background: #f4f6f9;
+
+  background: #f5f6f8;
   color: #111827;
 }
 
@@ -32,22 +39,18 @@ body {
 
 button,
 input {
-  font: inherit;
-}
-
-
-button {
-  cursor: pointer;
+  font-family: inherit;
 }
 
 
 /* =========================================================
-   전체 앱
+   앱
    ========================================================= */
 
 .app {
   min-height: 100vh;
-  background: #f4f6f9;
+  background: #f5f6f8;
+  padding-bottom: 90px;
 }
 
 
@@ -56,131 +59,140 @@ button {
    ========================================================= */
 
 header {
-  background: #071e49;
+  position: relative;
+
+  background: #082653;
   color: white;
+
   padding:
     28px
-    32px
-    0
-    32px;
+    26px
+    20px;
+
 }
 
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 18px;
-  min-height: 90px;
+  gap: 15px;
 }
 
 
 .brand > b {
-  font-size: 48px;
+  font-size: 46px;
   line-height: 1;
 }
 
 
 .brand h1 {
   margin: 0;
-  font-size: 34px;
-  line-height: 1.15;
+
+  font-size: 31px;
+  line-height: 1.1;
   font-weight: 800;
-  letter-spacing: -1.5px;
 }
 
 
 .brand small {
   display: block;
-  margin-top: 5px;
-  font-size: 19px;
-  color: #c8d2e5;
+
+  margin-top: 6px;
+
+  font-size: 17px;
+  color: #d5dbea;
 }
 
 
 .actions {
   position: absolute;
-  right: 30px;
-  top: 28px;
+
+  top: 36px;
+  right: 25px;
+
   display: flex;
-  gap: 10px;
+  gap: 20px;
 }
 
 
 .actions button {
-  width: 48px;
-  height: 48px;
   border: 0;
   background: transparent;
+
   color: white;
-  font-size: 38px;
-  line-height: 1;
+
+  font-size: 36px;
+
+  cursor: pointer;
+
   padding: 0;
 }
 
 
-.actions button:active {
-  transform: scale(.9);
-}
-
-
 /* =========================================================
-   상태 표시
+   상태
    ========================================================= */
 
 .status {
-  min-height: 76px;
-  margin-top: 18px;
-  border-top: 1px solid rgba(255,255,255,.15);
-
   display: flex;
   align-items: center;
-  gap: 12px;
 
-  font-size: 19px;
-  color: #f1f4fa;
+  margin-top: 25px;
+  padding-top: 20px;
+
+  border-top:
+    1px solid
+    rgba(255,255,255,.18);
+
+  font-size: 18px;
 }
 
 
 .status i {
-  width: 16px;
-  height: 16px;
+  display: inline-block;
+
+  width: 15px;
+  height: 15px;
+
   border-radius: 50%;
-  background: #25d366;
-  display: block;
-  flex: 0 0 auto;
+
+  background: #24d66f;
+
+  margin-right: 12px;
+}
+
+
+.status span {
+  flex: 1;
 }
 
 
 .status button {
-  margin-left: auto;
   border: 0;
   background: transparent;
+
   color: white;
-  font-size: 19px;
-  font-weight: 600;
-  padding: 12px 0 12px 20px;
-}
 
+  font-size: 17px;
 
-.status button:active {
-  opacity: .65;
+  cursor: pointer;
 }
 
 
 /* =========================================================
-   메인
+   본문
    ========================================================= */
 
-main {
-  min-height: calc(100vh - 230px);
-  padding-bottom: 110px;
-}
-
-
 .content {
-  padding: 38px 26px 50px;
-  max-width: 900px;
+  width: 100%;
+  max-width: 760px;
+
   margin: 0 auto;
+
+  padding:
+    24px
+    26px
+    110px;
 }
 
 
@@ -189,11 +201,13 @@ main {
    ========================================================= */
 
 .title {
-  margin-bottom: 28px;
   font-size: 34px;
   font-weight: 800;
-  letter-spacing: -1px;
-  color: #111827;
+
+  margin:
+    5px
+    0
+    28px;
 }
 
 
@@ -204,46 +218,53 @@ main {
 .notice {
   display: flex;
   align-items: center;
+
   gap: 18px;
+
+  padding: 30px 26px;
+
   margin-bottom: 26px;
 }
 
 
 .notice-icon {
-  font-size: 40px;
-  line-height: 1;
+  font-size: 42px;
 }
 
 
 .notice b {
   display: block;
+
   font-size: 26px;
-  line-height: 1.3;
+  line-height: 1.25;
 }
 
 
 .muted {
-  color: #7a808a;
-}
+  color: #727985;
 
+  font-size: 17px;
 
-.notice .muted {
-  margin-top: 5px;
-  font-size: 18px;
+  margin-top: 6px;
 }
 
 
 /* =========================================================
-   카드 공통
+   공통 카드
    ========================================================= */
 
 .card {
   background: white;
-  border-radius: 25px;
-  margin-bottom: 16px;
-  padding: 26px;
+
+  border-radius: 28px;
+
   box-shadow:
-    0 3px 14px rgba(20, 32, 50, .06);
+    0 5px 20px
+    rgba(0,0,0,.06);
+
+  margin-bottom: 18px;
+
+  overflow: hidden;
 }
 
 
@@ -253,76 +274,63 @@ main {
 
 .cats {
   display: flex;
+
   gap: 12px;
+
   overflow-x: auto;
-  overflow-y: hidden;
 
   padding:
     0
     0
-    10px
-    0;
+    12px;
 
-  margin-bottom: 18px;
+  margin-bottom: 22px;
 
-  scrollbar-width: thin;
-  scrollbar-color: #b9bcc1 transparent;
+  scrollbar-width: none;
 }
 
 
 .cats::-webkit-scrollbar {
-  height: 7px;
+  display: none;
 }
 
 
-.cats::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-
-.cats::-webkit-scrollbar-thumb {
-  background: #b8bbc0;
-  border-radius: 20px;
-}
-
-
-.category-btn {
+.cat-btn {
   flex: 0 0 auto;
 
-  min-height: 58px;
-
-  padding:
-    0
-    24px;
-
-  border-radius: 30px;
-
-  border: 1px solid #dfe2e7;
+  border: 2px solid #e0e2e6;
 
   background: white;
 
   color: #17191d;
 
+  border-radius: 40px;
+
+  padding:
+    15px
+    25px;
+
   font-size: 20px;
 
   white-space: nowrap;
 
+  cursor: pointer;
+
   transition:
-    background .15s,
-    color .15s,
-    transform .1s;
+    .15s ease;
 }
 
 
-.category-btn:active {
-  transform: scale(.97);
-}
+.cat-btn.on {
+  background: #082653;
+  border-color: #082653;
 
-
-.category-btn.on {
-  background: #071e49;
-  border-color: #071e49;
   color: white;
+}
+
+
+.cat-btn:active {
+  transform: scale(.96);
 }
 
 
@@ -330,74 +338,80 @@ main {
    기사 카드
    ========================================================= */
 
-.news-card {
-  padding: 0;
-  overflow: hidden;
+.article-card {
+
+  display: flex;
+
+  width: 100%;
+
+  min-height: 300px;
+
+  padding: 30px 26px;
+
+  gap: 20px;
+
   cursor: pointer;
+
   transition:
-    transform .12s,
-    box-shadow .12s;
+    transform .15s ease,
+    box-shadow .15s ease;
 }
 
 
-.news-card:active {
+.article-card:active {
   transform: scale(.985);
 }
 
 
-.article-body {
-  display: flex;
-  align-items: stretch;
-  min-height: 190px;
-}
-
-
 /* =========================================================
-   기사 왼쪽 영역
+   왼쪽 기사 내용
    ========================================================= */
 
-.article-info {
+.article-left {
+
   flex: 1 1 auto;
+
   min-width: 0;
 
-  padding:
-    26px
-    14px
-    25px
-    26px;
-
   display: flex;
+
   flex-direction: column;
 }
 
 
 /* =========================================================
-   기사 상단
+   상단 분류 + 저장
    ========================================================= */
 
 .article-top {
+
   display: flex;
+
   align-items: center;
+
   justify-content: space-between;
 
-  margin-bottom: 15px;
+  margin-bottom: 24px;
 }
 
 
 .category-badge {
+
   display: inline-flex;
+
   align-items: center;
+
   justify-content: center;
 
-  min-height: 40px;
+  min-height: 46px;
 
   padding:
-    0
-    13px;
+    7px
+    15px;
 
-  border-radius: 8px;
+  border-radius: 11px;
 
-  background: #ed3b3b;
+  background: #ef3c3f;
 
   color: white;
 
@@ -409,34 +423,25 @@ main {
 }
 
 
-/* =========================================================
-   저장 버튼
-   ========================================================= */
-
 .save {
-  width: 42px;
-  height: 42px;
-
-  padding: 0;
 
   border: 0;
 
   background: transparent;
 
+  padding: 0;
+
+  margin-left: 8px;
+
   color: #111;
 
-  font-size: 33px;
+  font-size: 40px;
 
   line-height: 1;
 
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+  cursor: pointer;
 
-
-.save:active {
-  transform: scale(.85);
+  flex-shrink: 0;
 }
 
 
@@ -444,21 +449,17 @@ main {
    기사 제목
    ========================================================= */
 
-.news-card h3 {
-  margin:
-    0
-    0
-    18px;
+.article-title {
 
-  color: #111827;
+  margin: 0;
 
-  font-size: 24px;
+  font-size: 23px;
 
-  line-height: 1.42;
+  line-height: 1.45;
 
   font-weight: 800;
 
-  letter-spacing: -.6px;
+  color: #111827;
 
   word-break: keep-all;
 
@@ -471,112 +472,129 @@ main {
    ========================================================= */
 
 .source {
+
   margin-top: auto;
 
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 5px;
+  padding-top: 24px;
 
-  color: #315f9d;
+  color: #41658d;
 
-  font-size: 15px;
+  font-size: 16px;
 
-  line-height: 1.4;
+  line-height: 1.55;
+
+  word-break: keep-all;
+}
+
+
+.source span {
+  margin:
+    0
+    4px;
 }
 
 
 /* =========================================================
-   오른쪽 기사 사진
+   오른쪽 이미지 영역
    ========================================================= */
 
-.thumb {
-  position: relative;
+.article-right {
 
-  flex: 0 0 145px;
+  flex:
+    0
+    0
+    34%;
 
-  width: 145px;
+  min-width: 150px;
 
-  min-height: 190px;
+  max-width: 220px;
 
-  margin:
-    20px
-    20px
-    20px
-    0;
+  display: flex;
 
-  border-radius: 17px;
+  align-items: stretch;
+
+  justify-content: center;
 
   overflow: hidden;
 
-  background:
-    linear-gradient(
-      135deg,
-      #dfe5ee,
-      #cbd3df
-    );
-}
+  border-radius: 25px;
 
-
-.thumb img {
-  display: block;
-
-  width: 100%;
-  height: 100%;
-
-  min-height: 150px;
-
-  object-fit: cover;
-}
-
-
-.image-fallback {
-  position: absolute;
-
-  inset: 0;
-
-  display: flex;
-
-  align-items: center;
-  justify-content: center;
-
-  font-size: 45px;
-
-  background:
-    linear-gradient(
-      135deg,
-      #dfe5ee,
-      #cbd3df
-    );
-}
-
-
-.thumb img + .image-fallback {
-  opacity: 0;
-}
-
-
-.thumb.no-image .image-fallback {
-  opacity: 1;
+  background: #dce2ec;
 }
 
 
 /* =========================================================
-   빈 화면
+   실제 기사 이미지
+   ========================================================= */
+
+.article-image {
+
+  width: 100%;
+
+  height: 100%;
+
+  min-height: 240px;
+
+  object-fit: cover;
+
+  display: block;
+
+  background: #dce2ec;
+}
+
+
+/* =========================================================
+   이미지가 없는 경우
+   ========================================================= */
+
+.image-placeholder {
+
+  width: 100%;
+
+  min-height: 240px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  background: #dce2ec;
+
+  font-size: 62px;
+}
+
+
+/* =========================================================
+   이미지 오류 fallback
+   ========================================================= */
+
+.fallback-image {
+
+  object-fit: contain;
+
+  padding: 35px;
+
+}
+
+
+/* =========================================================
+   빈 목록
    ========================================================= */
 
 .empty {
-  padding:
-    80px
-    20px;
 
   text-align: center;
 
-  color: #7c828b;
+  color: #777d87;
 
-  font-size: 22px;
+  font-size: 20px;
 
   line-height: 1.7;
+
+  padding:
+    80px
+    20px;
 }
 
 
@@ -585,84 +603,26 @@ main {
    ========================================================= */
 
 .btn {
+
   width: 100%;
-
-  min-height: 56px;
-
-  margin-top: 12px;
 
   border: 0;
 
-  border-radius: 15px;
+  border-radius: 16px;
 
-  background: #071e49;
+  background: #082653;
 
   color: white;
 
+  padding: 16px;
+
+  margin:
+    6px
+    0;
+
   font-size: 18px;
 
-  font-weight: 700;
-}
-
-
-.btn:active {
-  transform: scale(.98);
-}
-
-
-/* =========================================================
-   검색
-   ========================================================= */
-
-.row {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-
-.input {
-  flex: 1;
-
-  min-width: 0;
-
-  height: 56px;
-
-  padding:
-    0
-    17px;
-
-  border:
-    1px solid #d8dce2;
-
-  border-radius: 14px;
-
-  background: white;
-
-  color: #111827;
-
-  font-size: 17px;
-
-  outline: none;
-}
-
-
-.input:focus {
-  border-color: #071e49;
-  box-shadow:
-    0 0 0 3px rgba(7,30,73,.08);
-}
-
-
-.search-btn {
-  flex: 0 0 90px;
-
-  width: 90px;
-
-  margin: 0;
-
-  min-height: 56px;
+  cursor: pointer;
 }
 
 
@@ -671,20 +631,64 @@ main {
    ========================================================= */
 
 .back {
+
   border: 0;
 
   background: transparent;
 
-  color: #315f9d;
+  color: #082653;
 
-  font-size: 19px;
+  font-size: 18px;
 
-  font-weight: 700;
+  padding: 8px 0;
+
+  cursor: pointer;
+
+  margin-bottom: 15px;
+}
+
+
+/* =========================================================
+   검색
+   ========================================================= */
+
+.row {
+
+  display: flex;
+
+  gap: 10px;
+
+  margin-bottom: 20px;
+}
+
+
+.input {
+
+  flex: 1;
+
+  min-width: 0;
+
+  border:
+    1px solid
+    #d8dbe0;
+
+  border-radius: 15px;
+
+  background: white;
 
   padding:
-    0
-    0
-    20px;
+    15px;
+
+  font-size: 17px;
+
+  outline: none;
+}
+
+
+.input:focus {
+
+  border-color:
+    #082653;
 
 }
 
@@ -693,16 +697,21 @@ main {
    설정
    ========================================================= */
 
-.setting-row {
+.settings-card {
+
   display: flex;
+
   align-items: center;
+
   justify-content: space-between;
 }
 
 
-.setting-row input {
-  width: 24px;
-  height: 24px;
+.settings-card input {
+
+  width: 22px;
+
+  height: 22px;
 }
 
 
@@ -711,37 +720,54 @@ main {
    ========================================================= */
 
 nav {
+
   position: fixed;
 
   left: 0;
   right: 0;
   bottom: 0;
 
-  z-index: 100;
+  z-index: 1000;
 
-  height: 108px;
+  height: 90px;
 
-  display: grid;
+  display: flex;
 
-  grid-template-columns:
-    repeat(5, 1fr);
+  align-items: center;
 
-  background: rgba(255,255,255,.98);
+  justify-content: space-around;
+
+  background: rgba(
+    255,
+    255,
+    255,
+    .97
+  );
 
   border-top:
-    1px solid #e1e3e7;
+    1px solid
+    #e0e2e6;
 
-  padding-bottom:
-    env(safe-area-inset-bottom);
+  backdrop-filter:
+    blur(10px);
 }
 
 
 nav button {
+
+  flex: 1;
+
+  height: 100%;
+
   border: 0;
 
   background: transparent;
 
-  color: #777d86;
+  color: #777d87;
+
+  font-size: 28px;
+
+  cursor: pointer;
 
   display: flex;
 
@@ -751,189 +777,186 @@ nav button {
 
   justify-content: center;
 
-  gap: 4px;
-
-  font-size: 38px;
-
-  line-height: 1;
-
-  padding: 8px 0;
+  gap: 5px;
 }
 
 
 nav button small {
-  font-size: 14px;
-  line-height: 1.2;
+
+  font-size: 13px;
+
 }
 
 
 nav button.active {
-  color: #2862a2;
-}
 
+  color: #1f5c9b;
 
-nav button:active {
-  transform: scale(.92);
 }
 
 
 /* =========================================================
-   작은 화면
+   모바일
    ========================================================= */
 
-@media (max-width: 600px) {
+@media (
+  max-width: 600px
+) {
 
   header {
+
     padding:
+      25px
       24px
-      24px
-      0;
-  }
+      18px;
 
-
-  .brand {
-    min-height: 82px;
-    gap: 14px;
-  }
-
-
-  .brand > b {
-    font-size: 39px;
   }
 
 
   .brand h1 {
+
     font-size: 30px;
-  }
 
-
-  .brand small {
-    font-size: 17px;
   }
 
 
   .actions {
-    right: 18px;
-    top: 24px;
-  }
 
+    top: 34px;
 
-  .actions button {
-    width: 43px;
-    height: 43px;
-    font-size: 34px;
-  }
+    right: 22px;
 
-
-  .status {
-    font-size: 17px;
-    min-height: 70px;
-  }
-
-
-  .status button {
-    font-size: 17px;
   }
 
 
   .content {
+
     padding:
-      28px
+      22px
       24px
-      40px;
-  }
+      110px;
 
-
-  .notice {
-    padding: 25px;
-  }
-
-
-  .notice b {
-    font-size: 23px;
-  }
-
-
-  .notice .muted {
-    font-size: 16px;
   }
 
 
   .title {
-    font-size: 30px;
+
+    font-size: 32px;
+
   }
 
 
-  .category-btn {
-    min-height: 56px;
-    padding: 0 21px;
-    font-size: 18px;
-  }
+  .notice {
 
-
-  .article-body {
-    min-height: 170px;
-  }
-
-
-  .article-info {
     padding:
-      22px
-      8px
-      22px
-      22px;
+      26px
+      20px;
+
   }
 
 
-  .thumb {
-    flex-basis: 125px;
-    width: 125px;
-    min-height: 150px;
+  .notice b {
 
-    margin:
-      18px
-      18px
-      18px
-      0;
+    font-size: 24px;
+
   }
 
 
-  .news-card h3 {
+  .cat-btn {
+
+    font-size: 19px;
+
+    padding:
+      14px
+      24px;
+
+  }
+
+
+  /* -----------------------------------------
+     모바일 기사 카드
+  ----------------------------------------- */
+
+  .article-card {
+
+    min-height: 0;
+
+    padding:
+      26px
+      18px;
+
+    gap: 14px;
+
+  }
+
+
+  .article-right {
+
+    flex:
+      0
+      0
+      34%;
+
+    min-width: 115px;
+
+    max-width: 150px;
+
+    min-height: 210px;
+
+    border-radius: 22px;
+
+  }
+
+
+  .article-image {
+
+    min-height: 210px;
+
+  }
+
+
+  .image-placeholder {
+
+    min-height: 210px;
+
+    font-size: 48px;
+
+  }
+
+
+  .article-title {
+
     font-size: 21px;
-    line-height: 1.42;
-    margin-bottom: 14px;
+
+    line-height: 1.5;
+
   }
 
 
   .category-badge {
-    min-height: 36px;
-    padding: 0 10px;
+
     font-size: 14px;
+
+    min-height: 43px;
+
+    padding:
+      7px
+      12px;
+
   }
 
 
   .save {
-    font-size: 30px;
+
+    font-size: 37px;
+
   }
 
 
   .source {
-    font-size: 13px;
-  }
 
+    font-size: 14px;
 
-  nav {
-    height: 100px;
-  }
-
-
-  nav button {
-    font-size: 34px;
-  }
-
-
-  nav button small {
-    font-size: 13px;
   }
 
 }
@@ -943,33 +966,48 @@ nav button:active {
    아주 작은 화면
    ========================================================= */
 
-@media (max-width: 390px) {
+@media (
+  max-width: 390px
+) {
 
   .content {
+
     padding-left: 18px;
+
     padding-right: 18px;
+
   }
 
 
-  .article-info {
-    padding-left: 18px;
+  .article-card {
+
+    padding:
+      22px
+      15px;
+
   }
 
 
-  .thumb {
-    flex-basis: 108px;
-    width: 108px;
-    margin-right: 14px;
+  .article-right {
+
+    min-width: 105px;
+
+    max-width: 125px;
+
   }
 
 
-  .news-card h3 {
+  .article-title {
+
     font-size: 19px;
+
   }
 
 
   .category-badge {
+
     font-size: 13px;
+
   }
 
 }
