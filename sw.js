@@ -1,6 +1,6 @@
-const CACHE_NAME = "nknews-pwa-v2";
+const CACHE_NAME = "nknews-pwa-v3";
 
-const APP_FILES = [
+const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
@@ -10,9 +10,7 @@ const APP_FILES = [
 ];
 
 
-/* =========================================
-   설치
-========================================= */
+/* 설치 */
 
 self.addEventListener(
   "install",
@@ -20,15 +18,15 @@ self.addEventListener(
 
     event.waitUntil(
 
-      caches.open(CACHE_NAME)
+      caches
+        .open(CACHE_NAME)
         .then(function (cache) {
 
-          return cache.addAll(APP_FILES);
+          return cache.addAll(ASSETS);
 
         })
 
     );
-
 
     self.skipWaiting();
 
@@ -36,10 +34,7 @@ self.addEventListener(
 );
 
 
-/* =========================================
-   활성화
-   이전 캐시 삭제
-========================================= */
+/* 활성화 */
 
 self.addEventListener(
   "activate",
@@ -47,46 +42,45 @@ self.addEventListener(
 
     event.waitUntil(
 
-      caches.keys()
+      caches
+        .keys()
         .then(function (keys) {
 
           return Promise.all(
 
-            keys.map(function (key) {
+            keys
+              .filter(function (key) {
 
-              if (key !== CACHE_NAME) {
+                return key !== CACHE_NAME;
+
+              })
+
+              .map(function (key) {
 
                 return caches.delete(key);
 
-              }
-
-            })
+              })
 
           );
-
-        })
-        .then(function () {
-
-          return self.clients.claim();
 
         })
 
     );
 
+    self.clients.claim();
+
   }
 );
 
 
-/* =========================================
-   요청 처리
-========================================= */
+/* 요청 처리 */
 
 self.addEventListener(
   "fetch",
   function (event) {
 
     /*
-       뉴스 API / RSS는
+       뉴스 API / 외부 데이터는
        Service Worker 캐시를 사용하지 않음
     */
 
@@ -103,20 +97,7 @@ self.addEventListener(
     ) {
 
       event.respondWith(
-
         fetch(event.request)
-          .catch(function () {
-
-            return new Response(
-              "",
-              {
-                status: 503,
-                statusText: "Offline"
-              }
-            );
-
-          })
-
       );
 
       return;
@@ -125,52 +106,27 @@ self.addEventListener(
 
 
     /*
-       앱 파일은
-       네트워크 우선으로 가져옴
+       앱 파일은 캐시 우선
+       없으면 네트워크
     */
 
     event.respondWith(
 
-      fetch(event.request)
-        .then(function (response) {
+      caches
+        .match(event.request)
+        .then(function (cached) {
 
-          /*
-             정상 응답이면 캐시 갱신
-          */
-
-          if (
-            response &&
-            response.status === 200
-          ) {
-
-            const copy =
-              response.clone();
-
-            caches.open(CACHE_NAME)
-              .then(function (cache) {
-
-                cache.put(
-                  event.request,
-                  copy
-                );
-
-              });
-
+          if (cached) {
+            return cached;
           }
 
-          return response;
 
-        })
-        .catch(function () {
+          return fetch(event.request)
+            .then(function (response) {
 
-          /*
-             인터넷이 안 될 경우
-             캐시 사용
-          */
+              return response;
 
-          return caches.match(
-            event.request
-          );
+            });
 
         })
 
