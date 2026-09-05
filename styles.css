@@ -1,5 +1,6 @@
 /* =========================================================
    북한 NEWS Monitor - styles.css
+   안정화 버전
    기사 왼쪽 + 사진 오른쪽 디자인
    ========================================================= */
 
@@ -48,6 +49,7 @@ button {
    ========================================================= */
 
 header {
+  position: relative;
   background: #082451;
   color: white;
   padding: 28px 32px 0;
@@ -76,6 +78,11 @@ header {
   color: #cbd5e1;
 }
 
+
+/* =========================================================
+   HEADER ACTIONS
+   ========================================================= */
+
 .actions {
   position: absolute;
   right: 32px;
@@ -92,30 +99,45 @@ header {
   padding: 4px;
 }
 
+
+/* =========================================================
+   STATUS
+   ========================================================= */
+
 .status {
   margin-top: 25px;
   border-top: 1px solid rgba(255,255,255,.15);
   height: 78px;
+
   display: flex;
   align-items: center;
   gap: 12px;
+
   font-size: 19px;
 }
 
 .status i {
   width: 14px;
   height: 14px;
+  min-width: 14px;
+
   border-radius: 50%;
   background: #21d66b;
+
   display: inline-block;
 }
 
 .status button {
   margin-left: auto;
+
   background: transparent;
   border: 0;
   color: white;
+
+  font-size: 18px;
   font-weight: 600;
+
+  padding: 8px 0;
 }
 
 
@@ -126,8 +148,13 @@ header {
 .content {
   width: 100%;
   max-width: 900px;
+
   margin: 0 auto;
-  padding: 28px 26px 110px;
+
+  padding:
+    28px
+    26px
+    110px;
 }
 
 .title {
@@ -144,17 +171,39 @@ header {
 .notice {
   display: flex;
   align-items: center;
-  gap: 25px;
-  min-height: 125px;
+
+  gap: 20px;
+
+  min-height: 110px;
+
+  padding:
+    20px
+    24px;
 }
 
 .notice-icon {
-  font-size: 50px;
+  font-size: 42px;
+  flex: 0 0 auto;
 }
 
 .notice b {
-  font-size: 28px;
+  display: block;
+
+  font-size: 24px;
+  line-height: 1.25;
+
+  font-weight: 800;
 }
+
+.notice .muted {
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+
+/* =========================================================
+   MUTED
+   ========================================================= */
 
 .muted {
   color: #737985;
@@ -168,10 +217,18 @@ header {
 
 .cats {
   display: flex;
+
   gap: 12px;
+
   overflow-x: auto;
-  padding: 4px 0 16px;
+
+  padding:
+    4px
+    0
+    16px;
+
   margin-bottom: 14px;
+
   scrollbar-width: none;
 }
 
@@ -181,13 +238,29 @@ header {
 
 .catBtn {
   flex: 0 0 auto;
-  border: 2px solid #e0e2e6;
+
+  border:
+    2px solid
+    #e0e2e6;
+
   background: white;
+
   border-radius: 40px;
-  padding: 14px 25px;
+
+  padding:
+    14px
+    25px;
+
   font-size: 21px;
+
   white-space: nowrap;
+
   color: #17191d;
+
+  transition:
+    background .15s ease,
+    color .15s ease,
+    border-color .15s ease;
 }
 
 .catBtn.on {
@@ -203,8 +276,11 @@ header {
 
 .card {
   background: white;
+
   border-radius: 28px;
+
   margin-bottom: 18px;
+
   box-shadow:
     0 3px 15px rgba(0,0,0,.06);
 }
@@ -216,11 +292,17 @@ header {
 
 .news-card {
   display: flex;
+
   gap: 20px;
+
   padding: 30px;
+
   min-height: 300px;
+
   cursor: pointer;
+
   overflow: hidden;
+
   transition:
     transform .15s ease,
     box-shadow .15s ease;
@@ -232,75 +314,135 @@ header {
 
 .news-text {
   flex: 1 1 auto;
+
   min-width: 0;
+
   display: flex;
   flex-direction: column;
 }
 
 .card-top {
   display: flex;
+
   align-items: center;
   justify-content: space-between;
+
   min-height: 52px;
 }
 
+
+/* =========================================================
+   CATEGORY BADGE
+   ========================================================= */
+
 .category-badge {
   display: inline-flex;
+
   align-items: center;
+
   background: #ef3d43;
+
   color: white;
+
   font-weight: 800;
+
   font-size: 16px;
-  padding: 12px 15px;
+
+  padding:
+    12px
+    15px;
+
   border-radius: 11px;
 }
 
+
+/* =========================================================
+   SAVE BUTTON
+   ========================================================= */
+
 .save {
   border: 0;
+
   background: transparent;
+
   color: #111;
+
   font-size: 42px;
+
   line-height: 1;
+
   padding: 0;
+
   width: 50px;
   height: 50px;
+
+  flex: 0 0 50px;
 }
+
+
+/* =========================================================
+   NEWS TITLE
+   ========================================================= */
 
 .news-title {
   margin:
-    24px 0 15px;
+    16px
+    0
+    5px;
+
   font-size: 27px;
+
   line-height: 1.4;
+
   font-weight: 800;
+
   word-break: keep-all;
 }
 
+
+/* =========================================================
+   SOURCE / DATE
+   제목과 출처 사이 간격 축소
+   ========================================================= */
+
 .source {
-  margin-top: auto;
+  margin-top: 0;
+
   color: #3b628f;
+
   font-size: 17px;
-  line-height: 1.55;
+
+  line-height: 1.45;
 }
 
 
 /* =========================================================
    IMAGE
+   이미지 기능을 다시 사용할 경우를 위한 영역
    ========================================================= */
 
 .news-image-wrap {
-  flex: 0 0 215px;
+  flex:
+    0 0 215px;
+
   width: 215px;
   height: 260px;
+
   border-radius: 27px;
+
   overflow: hidden;
+
   background: #dfe5ef;
+
   align-self: center;
 }
 
 .news-image {
   display: block;
+
   width: 100%;
   height: 100%;
+
   object-fit: cover;
 }
 
@@ -311,10 +453,16 @@ header {
 
 .empty {
   text-align: center;
+
   color: #747982;
+
   font-size: 22px;
+
   line-height: 1.6;
-  padding: 80px 20px;
+
+  padding:
+    80px
+    20px;
 }
 
 
@@ -324,34 +472,62 @@ header {
 
 .btn {
   width: 100%;
-  margin: 10px 0;
+
+  margin:
+    10px
+    0;
+
   padding: 16px;
+
   border: 0;
+
   border-radius: 15px;
+
   background: #082451;
+
   color: white;
+
   font-weight: 700;
 }
 
 .back {
   border: 0;
+
   background: transparent;
+
   color: #082451;
+
   font-size: 20px;
-  padding: 8px 0;
+
+  padding:
+    8px
+    0;
 }
+
+
+/* =========================================================
+   SEARCH ROW
+   ========================================================= */
 
 .row {
   display: flex;
+
   gap: 10px;
+
   margin-bottom: 20px;
 }
 
 .input {
   flex: 1;
-  border: 1px solid #ddd;
+
+  border:
+    1px solid
+    #ddd;
+
   border-radius: 12px;
+
   padding: 15px;
+
   background: white;
 }
 
@@ -362,8 +538,10 @@ header {
 
 .setting-card {
   display: flex;
+
   align-items: center;
   justify-content: space-between;
+
   padding: 22px;
 }
 
@@ -379,29 +557,48 @@ header {
 
 nav {
   position: fixed;
+
   z-index: 100;
+
   left: 0;
   right: 0;
   bottom: 0;
+
   height: 92px;
-  background: rgba(255,255,255,.97);
-  border-top: 1px solid #ddd;
+
+  background:
+    rgba(255,255,255,.97);
+
+  border-top:
+    1px solid
+    #ddd;
+
   display: flex;
+
   justify-content: space-around;
   align-items: center;
 }
 
 nav button {
   flex: 1;
+
   height: 100%;
+
   border: 0;
+
   background: transparent;
+
   color: #747982;
+
   font-size: 30px;
+
   display: flex;
+
   flex-direction: column;
+
   align-items: center;
   justify-content: center;
+
   gap: 4px;
 }
 
@@ -422,7 +619,18 @@ nav button.active {
 
   header {
     padding:
-      26px 25px 0;
+      26px
+      25px
+      0;
+  }
+
+
+  /* -----------------------------------------
+     브랜드
+     ----------------------------------------- */
+
+  .brand {
+    gap: 14px;
   }
 
   .brand > b {
@@ -437,6 +645,11 @@ nav button.active {
     font-size: 17px;
   }
 
+
+  /* -----------------------------------------
+     상단 아이콘
+     ----------------------------------------- */
+
   .actions {
     right: 22px;
     top: 29px;
@@ -446,75 +659,188 @@ nav button.active {
     font-size: 32px;
   }
 
+
+  /* -----------------------------------------
+     업데이트 상태
+     ----------------------------------------- */
+
   .status {
-    font-size: 17px;
+    height: 72px;
+
+    margin-top: 22px;
+
+    font-size: 16px;
+
+    gap: 10px;
   }
+
+  .status i {
+    width: 13px;
+    height: 13px;
+    min-width: 13px;
+  }
+
+  .status button {
+    font-size: 16px;
+  }
+
+
+  /* -----------------------------------------
+     메인
+     ----------------------------------------- */
 
   .content {
     padding:
-      24px 18px 110px;
+      24px
+      18px
+      110px;
   }
 
+
+  /* -----------------------------------------
+     알림 카드
+     ----------------------------------------- */
+
   .notice {
-    min-height: 120px;
-    padding: 22px;
-    gap: 14px;
+    min-height: 105px;
+
+    padding:
+      18px
+      20px;
+
+    gap: 13px;
   }
 
   .notice-icon {
-    font-size: 40px;
+    font-size: 36px;
   }
 
   .notice b {
-    font-size: 23px;
+    font-size: 20px;
+    line-height: 1.25;
   }
+
+  .notice .muted {
+    font-size: 14px;
+    line-height: 1.35;
+  }
+
+
+  /* -----------------------------------------
+     제목
+     ----------------------------------------- */
 
   .title {
     font-size: 32px;
   }
 
+
+  /* -----------------------------------------
+     카테고리
+     ----------------------------------------- */
+
   .catBtn {
     font-size: 19px;
+
     padding:
-      13px 23px;
+      13px
+      23px;
   }
+
+
+  /* -----------------------------------------
+     기사 카드
+     ----------------------------------------- */
 
   .news-card {
     padding: 20px;
+
     gap: 14px;
+
     min-height: 245px;
+
     border-radius: 25px;
   }
 
-  .news-image-wrap {
-    flex: 0 0 150px;
-    width: 150px;
-    height: 220px;
-    border-radius: 22px;
-  }
+
+  /* -----------------------------------------
+     기사 제목
+     ----------------------------------------- */
 
   .news-title {
     font-size: 21px;
+
     line-height: 1.45;
-    margin-top: 18px;
+
+    margin:
+      12px
+      0
+      3px;
   }
+
+
+  /* -----------------------------------------
+     출처
+     ----------------------------------------- */
+
+  .source {
+    font-size: 14px;
+
+    line-height: 1.4;
+
+    margin-top: 0;
+  }
+
+
+  /* -----------------------------------------
+     분류
+     ----------------------------------------- */
 
   .category-badge {
     font-size: 14px;
+
     padding:
-      10px 12px;
+      10px
+      12px;
   }
+
+
+  /* -----------------------------------------
+     저장
+     ----------------------------------------- */
 
   .save {
     font-size: 37px;
+
     width: 43px;
     height: 43px;
+
+    flex-basis: 43px;
   }
+
+
+  /* -----------------------------------------
+     이미지
+     ----------------------------------------- */
+
+  .news-image-wrap {
+    flex:
+      0 0 150px;
+
+    width: 150px;
+    height: 220px;
+
+    border-radius: 22px;
+  }
+
+
+  /* -----------------------------------------
+     출처
+     ----------------------------------------- */
 
   .source {
     font-size: 14px;
   }
-
 }
 
 
@@ -524,32 +850,196 @@ nav button.active {
 
 @media (max-width: 430px) {
 
-  .news-card {
-    padding: 16px;
+  /* -----------------------------------------
+     헤더
+     ----------------------------------------- */
+
+  header {
+    padding:
+      22px
+      18px
+      0;
+  }
+
+  .brand {
     gap: 10px;
   }
 
-  .news-image-wrap {
-    flex-basis: 125px;
-    width: 125px;
-    height: 190px;
+  .brand > b {
+    font-size: 34px;
   }
 
-  .news-title {
-    font-size: 18px;
+  .brand h1 {
+    font-size: 28px;
   }
 
-  .category-badge {
-    font-size: 12px;
-    padding: 8px 9px;
+  .brand small {
+    font-size: 15px;
   }
 
-  .save {
+
+  /* -----------------------------------------
+     상단 버튼
+     ----------------------------------------- */
+
+  .actions {
+    right: 15px;
+    top: 25px;
+
+    gap: 8px;
+  }
+
+  .actions button {
+    font-size: 29px;
+  }
+
+
+  /* -----------------------------------------
+     상태
+     ----------------------------------------- */
+
+  .status {
+    height: 68px;
+
+    font-size: 15px;
+
+    gap: 8px;
+  }
+
+  .status button {
+    font-size: 15px;
+  }
+
+
+  /* -----------------------------------------
+     메인
+     ----------------------------------------- */
+
+  .content {
+    padding:
+      20px
+      14px
+      105px;
+  }
+
+
+  /* -----------------------------------------
+     알림
+     ----------------------------------------- */
+
+  .notice {
+    min-height: 95px;
+
+    padding:
+      15px
+      17px;
+
+    gap: 10px;
+  }
+
+  .notice-icon {
     font-size: 32px;
   }
 
-  .source {
-    font-size: 12px;
+  .notice b {
+    font-size: 18px;
   }
 
+  .notice .muted {
+    font-size: 13px;
+  }
+
+
+  /* -----------------------------------------
+     카테고리
+     ----------------------------------------- */
+
+  .catBtn {
+    font-size: 17px;
+
+    padding:
+      11px
+      19px;
+  }
+
+
+  /* -----------------------------------------
+     기사
+     ----------------------------------------- */
+
+  .news-card {
+    padding: 16px;
+
+    gap: 10px;
+  }
+
+
+  .news-title {
+    font-size: 18px;
+
+    line-height: 1.45;
+
+    margin:
+      10px
+      0
+      2px;
+  }
+
+
+  .category-badge {
+    font-size: 12px;
+
+    padding:
+      8px
+      9px;
+  }
+
+
+  .save {
+    font-size: 32px;
+
+    width: 38px;
+    height: 38px;
+
+    flex-basis: 38px;
+  }
+
+
+  .source {
+    font-size: 12px;
+
+    line-height: 1.35;
+  }
+
+
+  /* -----------------------------------------
+     이미지
+     ----------------------------------------- */
+
+  .news-image-wrap {
+    flex:
+      0 0 125px;
+
+    width: 125px;
+    height: 190px;
+
+    border-radius: 20px;
+  }
+
+
+  /* -----------------------------------------
+     하단 메뉴
+     ----------------------------------------- */
+
+  nav {
+    height: 88px;
+  }
+
+  nav button {
+    font-size: 28px;
+  }
+
+  nav button small {
+    font-size: 12px;
+  }
 }
