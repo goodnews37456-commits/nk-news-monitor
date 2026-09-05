@@ -1,13 +1,17 @@
 /* =========================================================
    북한 NEWS Monitor - app.js
-   안정화 + 최신순 + 카테고리 + 원문 바로가기
-   + 기사 대표 이미지 표시
+   안정화 버전
+   최신순 + 카테고리 + 원문 바로가기
+   + 기사 대표 이미지 자동 추출
    ========================================================= */
 
 const RSS =
   "https://news.google.com/rss/search?q=" +
   encodeURIComponent("북한 OR 김정은 OR 북핵 OR 미사일") +
   "&hl=ko&gl=KR&ceid=KR:ko";
+
+const IMAGE_PROXY =
+  "https://api.allorigins.win/raw?url=";
 
 let news = [];
 let page = "home";
@@ -21,9 +25,11 @@ const main = document.querySelector("#main");
    ========================================================= */
 
 function esc(value) {
+
   return String(value || "").replace(
     /[&<>"']/g,
     function (c) {
+
       return {
         "&": "&amp;",
         "<": "&lt;",
@@ -31,25 +37,32 @@ function esc(value) {
         '"': "&quot;",
         "'": "&#39;"
       }[c];
+
     }
   );
+
 }
 
 
 /* =========================================================
-   날짜 처리
+   날짜
    ========================================================= */
 
 function getTime(item) {
+
   const value =
     item.pub ||
     item.pubDate ||
     item.date ||
     "";
 
-  const time = new Date(value).getTime();
+  const time =
+    new Date(value).getTime();
 
-  return Number.isNaN(time) ? 0 : time;
+  return Number.isNaN(time)
+    ? 0
+    : time;
+
 }
 
 
@@ -59,10 +72,17 @@ function formatDate(value) {
     return "";
   }
 
-  const date = new Date(value);
+  const date =
+    new Date(value);
 
-  if (Number.isNaN(date.getTime())) {
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+
     return value;
+
   }
 
   return date.toLocaleString(
@@ -75,6 +95,7 @@ function formatDate(value) {
       minute: "2-digit"
     }
   );
+
 }
 
 
@@ -88,15 +109,21 @@ function getSaved() {
 
     const data =
       JSON.parse(
-        localStorage.getItem("saved") || "[]"
+        localStorage.getItem(
+          "saved"
+        ) || "[]"
       );
 
-    return Array.isArray(data) ? data : [];
+    return Array.isArray(data)
+      ? data
+      : [];
 
   } catch (e) {
 
     return [];
+
   }
+
 }
 
 
@@ -104,20 +131,26 @@ function isSaved(item) {
 
   return getSaved().some(
     function (x) {
+
       return x.link === item.link;
+
     }
   );
+
 }
 
 
 function toggle(item) {
 
-  let saved = getSaved();
+  let saved =
+    getSaved();
 
   const index =
     saved.findIndex(
       function (x) {
+
         return x.link === item.link;
+
       }
     );
 
@@ -128,6 +161,7 @@ function toggle(item) {
   } else {
 
     saved.unshift(item);
+
   }
 
   localStorage.setItem(
@@ -136,11 +170,12 @@ function toggle(item) {
   );
 
   render();
+
 }
 
 
 /* =========================================================
-   카테고리 분류
+   카테고리
    ========================================================= */
 
 function getCategory(item) {
@@ -153,143 +188,74 @@ function getCategory(item) {
 
 
   /* 군사/안보 */
+
   if (
-    /미사일|탄도미사일|icbm|slbm|핵무기|핵실험|핵탄두|군사|군대|무기|발사|포병|잠수함|전투기|훈련|도발|안보|국방|미군|한미연합|방사포/.test(text)
+    /미사일|탄도미사일|icbm|slbm|핵무기|핵실험|핵탄두|군사|군대|무기|발사|포병|잠수함|전투기|훈련|도발|안보|국방|미군|한미연합|방사포/
+      .test(text)
   ) {
+
     return "군사/안보";
+
   }
 
 
   /* 정치/외교 */
+
   if (
-    /김정은|정치|외교|정상회담|회담|정상|북한|남북|통일|정부|대통령|미국|중국|러시아|일본|외무성|외무|대사|국무|당대회|노동당|지도자/.test(text)
+    /김정은|정치|외교|정상회담|회담|정상|북한|남북|통일|정부|대통령|미국|중국|러시아|일본|외무성|외무|대사|국무|당대회|노동당|지도자/
+      .test(text)
   ) {
+
     return "정치/외교";
+
   }
 
 
   /* 경제 */
+
   if (
-    /경제|무역|시장|식량|농업|산업|수출|수입|제재|금융|화폐|공장|기업|농산물|물가|경제협력/.test(text)
+    /경제|무역|시장|식량|농업|산업|수출|수입|제재|금융|화폐|공장|기업|농산물|물가|경제협력/
+      .test(text)
   ) {
+
     return "경제";
+
   }
 
 
   /* 사회/문화 */
+
   if (
-    /사회|문화|교육|학교|학생|체육|스포츠|예술|공연|주민|생활|보건|의료|병원|관광|영화|음악/.test(text)
+    /사회|문화|교육|학교|학생|체육|스포츠|예술|공연|주민|생활|보건|의료|병원|관광|영화|음악/
+      .test(text)
   ) {
+
     return "사회/문화";
+
   }
 
 
   return "정치/외교";
+
 }
 
 
 function match(item, category) {
 
   if (category === "전체") {
+
     return true;
+
   }
 
   return getCategory(item) === category;
+
 }
 
 
 /* =========================================================
-   이미지 관련
+   기본 이미지
    ========================================================= */
-
-/*
-   RSS에서 이미지 주소를 여러 방식으로 찾습니다.
-*/
-
-function extractImageFromDescription(html) {
-
-  if (!html) {
-    return "";
-  }
-
-  try {
-
-    const temp =
-      document.createElement("div");
-
-    temp.innerHTML = html;
-
-    const img =
-      temp.querySelector("img");
-
-    if (img) {
-
-      return (
-        img.getAttribute("src") ||
-        img.getAttribute("data-src") ||
-        ""
-      );
-    }
-
-  } catch (e) {}
-
-  return "";
-}
-
-
-function getImage(item) {
-
-  /*
-     RSS2JSON에서 제공되는 대표 이미지
-  */
-
-  if (item.image) {
-    return item.image;
-  }
-
-  if (item.thumbnail) {
-    return item.thumbnail;
-  }
-
-  if (
-    item.enclosure &&
-    item.enclosure.link
-  ) {
-    return item.enclosure.link;
-  }
-
-
-  /*
-     RSS media:content에서 가져온 이미지
-  */
-
-  if (item.mediaContent) {
-    return item.mediaContent;
-  }
-
-
-  /*
-     description 안의 img 찾기
-  */
-
-  const descriptionImage =
-    extractImageFromDescription(
-      item.description || ""
-    );
-
-  if (descriptionImage) {
-    return descriptionImage;
-  }
-
-
-  return "";
-}
-
-
-/*
-   사진이 없는 경우 표시할 기본 이미지
-   SVG data URL이므로 별도 파일이 필요 없습니다.
-*/
 
 const FALLBACK_IMAGE =
   "data:image/svg+xml;charset=UTF-8," +
@@ -298,15 +264,111 @@ const FALLBACK_IMAGE =
          width="600"
          height="800"
          viewBox="0 0 600 800">
-      <rect width="600" height="800" fill="#dfe5ef"/>
-      <text x="300"
-            y="390"
-            text-anchor="middle"
-            font-size="120">
+
+      <rect
+        width="600"
+        height="800"
+        fill="#dfe5ef"/>
+
+      <text
+        x="300"
+        y="430"
+        text-anchor="middle"
+        font-size="120">
         🇰🇵
       </text>
+
     </svg>
   `);
+
+
+/* =========================================================
+   RSS 내부 이미지 추출
+   ========================================================= */
+
+function extractImageFromDescription(html) {
+
+  if (!html) {
+
+    return "";
+
+  }
+
+  try {
+
+    const temp =
+      document.createElement(
+        "div"
+      );
+
+    temp.innerHTML = html;
+
+    const img =
+      temp.querySelector(
+        "img"
+      );
+
+    if (img) {
+
+      return (
+        img.getAttribute("src") ||
+        img.getAttribute("data-src") ||
+        img.getAttribute("data-original") ||
+        ""
+      );
+
+    }
+
+  } catch (e) {}
+
+  return "";
+
+}
+
+
+function getImage(item) {
+
+  if (item.image) {
+
+    return item.image;
+
+  }
+
+  if (item.thumbnail) {
+
+    return item.thumbnail;
+
+  }
+
+  if (
+    item.enclosure &&
+    item.enclosure.link
+  ) {
+
+    return item.enclosure.link;
+
+  }
+
+  if (item.mediaContent) {
+
+    return item.mediaContent;
+
+  }
+
+  const descriptionImage =
+    extractImageFromDescription(
+      item.description || ""
+    );
+
+  if (descriptionImage) {
+
+    return descriptionImage;
+
+  }
+
+  return "";
+
+}
 
 
 /* =========================================================
@@ -333,10 +395,14 @@ function cats() {
             <button
               type="button"
               class="catBtn ${
-                cat === c ? "on" : ""
+                cat === c
+                  ? "on"
+                  : ""
               }"
               data-category="${esc(c)}">
+
               ${esc(c)}
+
             </button>
           `;
 
@@ -345,6 +411,7 @@ function cats() {
 
     </div>
   `;
+
 }
 
 
@@ -382,22 +449,37 @@ function card(item) {
             class="save"
             data-save-link="${esc(item.link)}"
             aria-label="기사 저장">
+
             ${saved ? "🔖" : "♡"}
+
           </button>
 
         </div>
+
 
         <h3 class="news-title">
           ${esc(item.title)}
         </h3>
 
+
         <div class="source">
-          ${esc(item.source || "Google News")}
+
+          ${esc(
+            item.source ||
+            "Google News"
+          )}
+
           ${
             item.pub
-              ? " · " + esc(formatDate(item.pub))
+              ? " · " +
+                esc(
+                  formatDate(
+                    item.pub
+                  )
+                )
               : ""
           }
+
         </div>
 
       </div>
@@ -408,6 +490,7 @@ function card(item) {
         <img
           class="news-image"
           src="${esc(image)}"
+          data-article-image="${esc(item.link)}"
           alt=""
           loading="lazy"
           onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}'">
@@ -416,6 +499,7 @@ function card(item) {
 
     </article>
   `;
+
 }
 
 
@@ -432,21 +516,26 @@ function list(items) {
 
     return `
       <div class="empty">
+
         표시할 기사가 없습니다.<br>
+
         새로고침을 눌러 다시 확인해 주세요.
+
       </div>
     `;
+
   }
 
-
-  /*
-     항상 최신순 정렬
-  */
 
   const sorted =
     [...items].sort(
       function (a, b) {
-        return getTime(b) - getTime(a);
+
+        return (
+          getTime(b) -
+          getTime(a)
+        );
+
       }
     );
 
@@ -455,6 +544,7 @@ function list(items) {
     .slice(0, 50)
     .map(card)
     .join("");
+
 }
 
 
@@ -465,7 +555,9 @@ function list(items) {
 function render() {
 
   document
-    .querySelectorAll("nav button")
+    .querySelectorAll(
+      "nav button"
+    )
     .forEach(
       function (button) {
 
@@ -482,9 +574,7 @@ function render() {
     '<div class="content">';
 
 
-  /* -------------------------
-     홈
-  ------------------------- */
+  /* 홈 */
 
   if (page === "home") {
 
@@ -515,18 +605,22 @@ function render() {
       ${list(
         news.filter(
           function (item) {
-            return match(item, cat);
+
+            return match(
+              item,
+              cat
+            );
+
           }
         )
       )}
 
     `;
+
   }
 
 
-  /* -------------------------
-     뉴스
-  ------------------------- */
+  /* 뉴스 */
 
   else if (page === "news") {
 
@@ -541,18 +635,22 @@ function render() {
       ${list(
         news.filter(
           function (item) {
-            return match(item, cat);
+
+            return match(
+              item,
+              cat
+            );
+
           }
         )
       )}
 
     `;
+
   }
 
 
-  /* -------------------------
-     저장됨
-  ------------------------- */
+  /* 저장 */
 
   else if (page === "saved") {
 
@@ -562,15 +660,16 @@ function render() {
         저장됨
       </div>
 
-      ${list(getSaved())}
+      ${list(
+        getSaved()
+      )}
 
     `;
+
   }
 
 
-  /* -------------------------
-     알림
-  ------------------------- */
+  /* 알림 */
 
   else if (page === "alerts") {
 
@@ -585,8 +684,10 @@ function render() {
         <b>🔔 새 기사 알림</b>
 
         <p class="muted">
+
           새로운 북한 관련 기사가
           수집되면 이 화면에서 확인할 수 있습니다.
+
         </p>
 
       </div>
@@ -596,18 +697,19 @@ function render() {
         <b>자동 업데이트</b>
 
         <p class="muted">
+
           앱을 열면 최신 뉴스를 확인합니다.
+
         </p>
 
       </div>
 
     `;
+
   }
 
 
-  /* -------------------------
-     설정
-  ------------------------- */
+  /* 설정 */
 
   else if (page === "settings") {
 
@@ -624,7 +726,9 @@ function render() {
         <input
           type="checkbox"
           ${
-            localStorage.getItem("notify") !== "off"
+            localStorage.getItem(
+              "notify"
+            ) !== "off"
               ? "checked"
               : ""
           }
@@ -653,12 +757,11 @@ function render() {
       </div>
 
     `;
+
   }
 
 
-  /* -------------------------
-     검색
-  ------------------------- */
+  /* 검색 */
 
   else if (page === "search") {
 
@@ -668,7 +771,9 @@ function render() {
         type="button"
         class="back"
         id="backHome">
+
         ‹ 뒤로
+
       </button>
 
       <div class="title">
@@ -686,7 +791,9 @@ function render() {
           type="button"
           class="btn"
           id="searchSubmit">
+
           검색
+
         </button>
 
       </div>
@@ -694,41 +801,39 @@ function render() {
       <div id="res"></div>
 
     `;
+
   }
 
 
   html += "</div>";
 
-  main.innerHTML = html;
+  main.innerHTML =
+    html;
 
-
-  /*
-     렌더링 후 이벤트 연결
-  */
 
   bindContentEvents();
+
 }
 
 
 /* =========================================================
-   기사 클릭
+   기사 원문 열기
    ========================================================= */
 
 function openArticle(link) {
 
   if (!link) {
-    return;
-  }
 
-  /*
-     새 탭으로 원문 열기
-  */
+    return;
+
+  }
 
   window.open(
     link,
     "_blank",
     "noopener,noreferrer"
   );
+
 }
 
 
@@ -738,12 +843,12 @@ function openArticle(link) {
 
 function bindContentEvents() {
 
-  /*
-     카테고리 버튼
-  */
+  /* 카테고리 */
 
   document
-    .querySelectorAll(".catBtn")
+    .querySelectorAll(
+      ".catBtn"
+    )
     .forEach(
       function (button) {
 
@@ -769,12 +874,12 @@ function bindContentEvents() {
     );
 
 
-  /*
-     기사 클릭
-  */
+  /* 기사 */
 
   document
-    .querySelectorAll(".news-card")
+    .querySelectorAll(
+      ".news-card"
+    )
     .forEach(
       function (cardElement) {
 
@@ -782,10 +887,9 @@ function bindContentEvents() {
           "click",
           function () {
 
-            const link =
-              cardElement.dataset.link;
-
-            openArticle(link);
+            openArticle(
+              cardElement.dataset.link
+            );
 
           }
         );
@@ -794,12 +898,12 @@ function bindContentEvents() {
     );
 
 
-  /*
-     저장 버튼
-  */
+  /* 저장 */
 
   document
-    .querySelectorAll("[data-save-link]")
+    .querySelectorAll(
+      "[data-save-link]"
+    )
     .forEach(
       function (button) {
 
@@ -816,17 +920,27 @@ function bindContentEvents() {
             const item =
               news.find(
                 function (x) {
-                  return x.link === link;
+
+                  return (
+                    x.link === link
+                  );
+
                 }
               ) ||
               getSaved().find(
                 function (x) {
-                  return x.link === link;
+
+                  return (
+                    x.link === link
+                  );
+
                 }
               );
 
             if (item) {
+
               toggle(item);
+
             }
 
           }
@@ -836,12 +950,12 @@ function bindContentEvents() {
     );
 
 
-  /*
-     뒤로
-  */
+  /* 뒤로 */
 
   const back =
-    document.querySelector("#backHome");
+    document.querySelector(
+      "#backHome"
+    );
 
   if (back) {
 
@@ -850,6 +964,7 @@ function bindContentEvents() {
       function () {
 
         page = "home";
+
         render();
 
       }
@@ -858,12 +973,12 @@ function bindContentEvents() {
   }
 
 
-  /*
-     검색
-  */
+  /* 검색 */
 
   const searchSubmit =
-    document.querySelector("#searchSubmit");
+    document.querySelector(
+      "#searchSubmit"
+    );
 
   if (searchSubmit) {
 
@@ -875,12 +990,12 @@ function bindContentEvents() {
   }
 
 
-  /*
-     알림 설정
-  */
+  /* 알림 */
 
   const notify =
-    document.querySelector("#notifyToggle");
+    document.querySelector(
+      "#notifyToggle"
+    );
 
   if (notify) {
 
@@ -899,6 +1014,7 @@ function bindContentEvents() {
     );
 
   }
+
 }
 
 
@@ -909,10 +1025,14 @@ function bindContentEvents() {
 function searchQ() {
 
   const input =
-    document.querySelector("#q");
+    document.querySelector(
+      "#q"
+    );
 
   if (!input) {
+
     return;
+
   }
 
   const q =
@@ -942,7 +1062,9 @@ function searchQ() {
 
 
   const resultBox =
-    document.querySelector("#res");
+    document.querySelector(
+      "#res"
+    );
 
   if (resultBox) {
 
@@ -952,11 +1074,12 @@ function searchQ() {
     bindContentEvents();
 
   }
+
 }
 
 
 /* =========================================================
-   RSS 가져오기
+   fetch
    ========================================================= */
 
 async function fetchText(url) {
@@ -973,7 +1096,8 @@ async function fetchText(url) {
   if (!response.ok) {
 
     throw new Error(
-      "HTTP " + response.status
+      "HTTP " +
+      response.status
     );
 
   }
@@ -993,22 +1117,19 @@ async function fetchText(url) {
   }
 
   return text;
+
 }
 
 
 /* =========================================================
-   XML에서 이미지 찾기
+   XML 이미지
    ========================================================= */
 
 function getXMLImage(item) {
 
-  /*
-     media:content
-  */
-
   const media =
     item.querySelector(
-      "content"
+      "media\\:content, content"
     );
 
   if (
@@ -1016,14 +1137,12 @@ function getXMLImage(item) {
     media.getAttribute("url")
   ) {
 
-    return media.getAttribute("url");
+    return media.getAttribute(
+      "url"
+    );
 
   }
 
-
-  /*
-     enclosure
-  */
 
   const enclosure =
     item.querySelector(
@@ -1032,17 +1151,17 @@ function getXMLImage(item) {
 
   if (
     enclosure &&
-    enclosure.getAttribute("url")
+    enclosure.getAttribute(
+      "url"
+    )
   ) {
 
-    return enclosure.getAttribute("url");
+    return enclosure.getAttribute(
+      "url"
+    );
 
   }
 
-
-  /*
-     description의 img
-  */
 
   const description =
     item.querySelector(
@@ -1053,22 +1172,25 @@ function getXMLImage(item) {
 
     const image =
       extractImageFromDescription(
-        description.textContent || ""
+        description.textContent ||
+        ""
       );
 
     if (image) {
+
       return image;
+
     }
 
   }
 
-
   return "";
+
 }
 
 
 /* =========================================================
-   RSS XML 파싱
+   RSS 파싱
    ========================================================= */
 
 function parseRSS(xmlText) {
@@ -1098,11 +1220,15 @@ function parseRSS(xmlText) {
 
   const items =
     Array.from(
-      xml.querySelectorAll("item")
+      xml.querySelectorAll(
+        "item"
+      )
     );
 
 
-  if (items.length === 0) {
+  if (
+    items.length === 0
+  ) {
 
     throw new Error(
       "RSS 기사 없음"
@@ -1122,13 +1248,11 @@ function parseRSS(xmlText) {
             )?.textContent?.trim() ||
             "";
 
-
           const link =
             item.querySelector(
               "link"
             )?.textContent?.trim() ||
             "";
-
 
           const source =
             item.querySelector(
@@ -1136,13 +1260,11 @@ function parseRSS(xmlText) {
             )?.textContent?.trim() ||
             "Google News";
 
-
           const pub =
             item.querySelector(
               "pubDate"
             )?.textContent?.trim() ||
             "";
-
 
           const description =
             item.querySelector(
@@ -1150,20 +1272,17 @@ function parseRSS(xmlText) {
             )?.textContent ||
             "";
 
-
           const image =
             getXMLImage(item);
 
 
           return {
-
             title,
             link,
             source,
             pub,
             description,
             image
-
           };
 
         }
@@ -1180,7 +1299,9 @@ function parseRSS(xmlText) {
       );
 
 
-  if (result.length === 0) {
+  if (
+    result.length === 0
+  ) {
 
     throw new Error(
       "기사 없음"
@@ -1190,6 +1311,7 @@ function parseRSS(xmlText) {
 
 
   return result;
+
 }
 
 
@@ -1215,7 +1337,9 @@ async function getFromRSS2JSON() {
   if (
     !data ||
     data.status !== "ok" ||
-    !Array.isArray(data.items)
+    !Array.isArray(
+      data.items
+    )
   ) {
 
     throw new Error(
@@ -1236,15 +1360,12 @@ async function getFromRSS2JSON() {
             "";
 
 
-          /*
-             thumbnail이 없으면 description에서 찾기
-          */
-
           if (!image) {
 
             image =
               extractImageFromDescription(
-                item.description || ""
+                item.description ||
+                ""
               );
 
           }
@@ -1253,10 +1374,12 @@ async function getFromRSS2JSON() {
           return {
 
             title:
-              item.title || "",
+              item.title ||
+              "",
 
             link:
-              item.link || "",
+              item.link ||
+              "",
 
             source:
               item.author ||
@@ -1264,13 +1387,16 @@ async function getFromRSS2JSON() {
               "Google News",
 
             pub:
-              item.pubDate || "",
+              item.pubDate ||
+              "",
 
             description:
-              item.description || "",
+              item.description ||
+              "",
 
             image:
-              image || ""
+              image ||
+              ""
 
           };
 
@@ -1288,7 +1414,9 @@ async function getFromRSS2JSON() {
       );
 
 
-  if (result.length === 0) {
+  if (
+    result.length === 0
+  ) {
 
     throw new Error(
       "기사 없음"
@@ -1298,25 +1426,26 @@ async function getFromRSS2JSON() {
 
 
   return result;
+
 }
 
 
 /* =========================================================
-   AllOrigins
+   AllOrigins RSS
    ========================================================= */
 
 async function getFromAllOrigins() {
 
   const url =
-    "https://api.allorigins.win/raw?url=" +
+    IMAGE_PROXY +
     encodeURIComponent(RSS);
 
 
   const xmlText =
     await fetchText(url);
 
-
   return parseRSS(xmlText);
+
 }
 
 
@@ -1330,6 +1459,7 @@ async function getDirect() {
     await fetchText(RSS);
 
   return parseRSS(xmlText);
+
 }
 
 
@@ -1351,19 +1481,19 @@ function normalizeNews(items) {
         !item.title ||
         !item.link
       ) {
+
         return;
+
       }
 
 
-      /*
-         이미지가 다른 방식으로 들어온 경우 보완
-      */
-
       if (!item.image) {
+
         item.image =
           item.thumbnail ||
           item.mediaContent ||
           "";
+
       }
 
 
@@ -1385,15 +1515,309 @@ function normalizeNews(items) {
   ).sort(
     function (a, b) {
 
-      return getTime(b) - getTime(a);
+      return (
+        getTime(b) -
+        getTime(a)
+      );
 
     }
   );
+
 }
 
 
 /* =========================================================
-   뉴스 저장 및 화면 업데이트
+   원문 페이지에서 og:image 가져오기
+   ========================================================= */
+
+async function getArticleImage(link) {
+
+  if (!link) {
+
+    return "";
+
+  }
+
+
+  try {
+
+    const proxyUrl =
+      IMAGE_PROXY +
+      encodeURIComponent(
+        link
+      );
+
+
+    const response =
+      await fetch(
+        proxyUrl,
+        {
+          method: "GET",
+          cache: "no-store"
+        }
+      );
+
+
+    if (!response.ok) {
+
+      return "";
+
+    }
+
+
+    const html =
+      await response.text();
+
+
+    if (!html) {
+
+      return "";
+
+    }
+
+
+    const doc =
+      new DOMParser()
+        .parseFromString(
+          html,
+          "text/html"
+        );
+
+
+    /*
+       1순위 og:image
+    */
+
+    const og =
+      doc.querySelector(
+        'meta[property="og:image"]'
+      );
+
+    if (
+      og &&
+      og.content
+    ) {
+
+      return og.content;
+
+    }
+
+
+    /*
+       2순위 twitter:image
+    */
+
+    const twitter =
+      doc.querySelector(
+        'meta[name="twitter:image"]'
+      );
+
+    if (
+      twitter &&
+      twitter.content
+    ) {
+
+      return twitter.content;
+
+    }
+
+
+    /*
+       3순위 첫 번째 큰 이미지
+    */
+
+    const images =
+      Array.from(
+        doc.querySelectorAll(
+          "img"
+        )
+      );
+
+
+    for (
+      const img of images
+    ) {
+
+      const src =
+        img.getAttribute(
+          "src"
+        ) ||
+        img.getAttribute(
+          "data-src"
+        ) ||
+        img.getAttribute(
+          "data-original"
+        ) ||
+        "";
+
+      if (
+        src &&
+        /^https?:\/\//i.test(
+          src
+        )
+      ) {
+
+        return src;
+
+      }
+
+    }
+
+  } catch (error) {
+
+    console.log(
+      "대표 이미지 추출 실패:",
+      link,
+      error
+    );
+
+  }
+
+
+  return "";
+
+}
+
+
+/* =========================================================
+   대표 이미지 자동 로딩
+   ========================================================= */
+
+async function loadArticleImages() {
+
+  /*
+     한 번에 너무 많은 원문을 호출하지 않도록
+     최신 기사 15개까지만 대표사진 검색
+  */
+
+  const targets =
+    news
+      .filter(
+        function (item) {
+
+          return (
+            item &&
+            item.link
+          );
+
+        }
+      )
+      .slice(0, 15);
+
+
+  /*
+     이미 실제 이미지가 있는 기사는 제외
+  */
+
+  const needImage =
+    targets.filter(
+      function (item) {
+
+        return !item.image;
+
+      }
+    );
+
+
+  if (
+    needImage.length === 0
+  ) {
+
+    return;
+
+  }
+
+
+  /*
+     동시에 너무 많이 호출하지 않도록
+     5개씩 처리
+  */
+
+  for (
+    let i = 0;
+    i < needImage.length;
+    i += 5
+  ) {
+
+    const batch =
+      needImage.slice(
+        i,
+        i + 5
+      );
+
+
+    await Promise.all(
+      batch.map(
+        async function (item) {
+
+          try {
+
+            const image =
+              await getArticleImage(
+                item.link
+              );
+
+
+            if (image) {
+
+              item.image =
+                image;
+
+
+              /*
+                 화면에 이미 표시된 카드도
+                 즉시 교체
+              */
+
+              const img =
+                document.querySelector(
+                  '[data-article-image="' +
+                  CSS.escape(
+                    item.link
+                  ) +
+                  '"]'
+                );
+
+
+              if (img) {
+
+                img.src =
+                  image;
+
+              }
+
+            }
+
+          } catch (error) {
+
+            console.log(
+              "이미지 처리 실패:",
+              error
+            );
+
+          }
+
+        }
+      )
+    );
+
+  }
+
+
+  /*
+     이미지가 새로 들어온 기사 정보 저장
+  */
+
+  localStorage.setItem(
+    "news",
+    JSON.stringify(news)
+  );
+
+}
+
+
+/* =========================================================
+   뉴스 적용
    ========================================================= */
 
 function applyNews(result) {
@@ -1434,18 +1858,28 @@ function applyNews(result) {
 
     status.textContent =
       "마지막 업데이트: " +
-      new Date().toLocaleTimeString(
-        "ko-KR",
-        {
-          hour: "2-digit",
-          minute: "2-digit"
-        }
-      );
+      new Date()
+        .toLocaleTimeString(
+          "ko-KR",
+          {
+            hour: "2-digit",
+            minute: "2-digit"
+          }
+        );
 
   }
 
 
   render();
+
+
+  /*
+     화면을 먼저 보여주고
+     대표사진을 뒤에서 가져옵니다.
+  */
+
+  loadArticleImages();
+
 }
 
 
@@ -1469,9 +1903,7 @@ async function refresh() {
   }
 
 
-  /*
-     1. RSS2JSON
-  */
+  /* 1. RSS2JSON */
 
   try {
 
@@ -1492,9 +1924,7 @@ async function refresh() {
   }
 
 
-  /*
-     2. AllOrigins
-  */
+  /* 2. AllOrigins */
 
   try {
 
@@ -1515,9 +1945,7 @@ async function refresh() {
   }
 
 
-  /*
-     3. 직접 RSS
-  */
+  /* 3. 직접 RSS */
 
   try {
 
@@ -1538,9 +1966,7 @@ async function refresh() {
   }
 
 
-  /*
-     4. 저장된 뉴스
-  */
+  /* 4. 저장된 뉴스 */
 
   try {
 
@@ -1553,8 +1979,12 @@ async function refresh() {
 
 
     news =
-      Array.isArray(savedNews)
-        ? normalizeNews(savedNews)
+      Array.isArray(
+        savedNews
+      )
+        ? normalizeNews(
+            savedNews
+          )
         : [];
 
   } catch (error) {
@@ -1575,6 +2005,7 @@ async function refresh() {
 
 
   render();
+
 }
 
 
@@ -1638,7 +2069,9 @@ if (searchButton) {
    ========================================================= */
 
 document
-  .querySelectorAll("nav button")
+  .querySelectorAll(
+    "nav button"
+  )
   .forEach(
     function (button) {
 
@@ -1667,7 +2100,9 @@ if (
 ) {
 
   navigator.serviceWorker
-    .register("sw.js")
+    .register(
+      "sw.js"
+    )
     .catch(
       function (error) {
 
@@ -1683,7 +2118,7 @@ if (
 
 
 /* =========================================================
-   기존 뉴스 불러오기
+   기존 뉴스
    ========================================================= */
 
 try {
@@ -1697,7 +2132,9 @@ try {
 
 
   if (
-    Array.isArray(oldNews)
+    Array.isArray(
+      oldNews
+    )
   ) {
 
     news =
@@ -1724,7 +2161,7 @@ refresh();
 
 
 /* =========================================================
-   5분마다 자동 업데이트
+   5분 자동 업데이트
    ========================================================= */
 
 setInterval(
