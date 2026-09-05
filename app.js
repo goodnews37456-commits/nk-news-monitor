@@ -1,26 +1,12 @@
 /* =========================================================
    북한 NEWS Monitor - app.js
-   안정화 완성 버전
-
-   기능
-   1. 북한 관련 뉴스 RSS
-   2. 최신순 정렬
-   3. 정치/외교
-   4. 군사/안보
-   5. 경제
-   6. 사회/문화
-   7. 기사 저장
-   8. 검색
-   9. 기사 클릭 시 원문 바로가기
-   10. 기사 대표 이미지 표시
-   11. 이미지 없을 경우 기본 이미지 표시
-   12. 네트워크 실패 시 저장된 뉴스 표시
-   13. 5분 자동 업데이트
+   안정화 최종 버전
+   이미지 기능 완전 제거
    ========================================================= */
 
 
 /* =========================================================
-   RSS 주소
+   기본 설정
    ========================================================= */
 
 const RSS =
@@ -31,24 +17,17 @@ const RSS =
   "&hl=ko&gl=KR&ceid=KR:ko";
 
 
-/* =========================================================
-   기본 상태
-   ========================================================= */
-
 let news = [];
-
 let page = "home";
-
 let cat = "전체";
 
-let isRefreshing = false;
 
 const main =
   document.querySelector("#main");
 
 
 /* =========================================================
-   안전한 문자열 처리
+   문자열 안전 처리
    ========================================================= */
 
 function esc(value) {
@@ -102,19 +81,14 @@ function formatDate(value) {
   const date =
     new Date(value);
 
-  if (
-    Number.isNaN(
-      date.getTime()
-    )
-  ) {
-
+  if (Number.isNaN(date.getTime())) {
     return value;
-
   }
 
   return date.toLocaleString(
     "ko-KR",
     {
+      year: "numeric",
       month: "2-digit",
       day: "2-digit",
       hour: "2-digit",
@@ -126,7 +100,7 @@ function formatDate(value) {
 
 
 /* =========================================================
-   저장 기능
+   저장된 기사
    ========================================================= */
 
 function getSaved() {
@@ -178,6 +152,7 @@ function toggle(item) {
       }
     );
 
+
   if (index >= 0) {
 
     saved.splice(index, 1);
@@ -188,10 +163,12 @@ function toggle(item) {
 
   }
 
+
   localStorage.setItem(
     "saved",
     JSON.stringify(saved)
   );
+
 
   render();
 
@@ -199,23 +176,47 @@ function toggle(item) {
 
 
 /* =========================================================
-   카테고리
+   카테고리 분류
    ========================================================= */
 
 function getCategory(item) {
 
-  const text =
-    (
-      (item.title || "") +
-      " " +
-      (item.description || "")
-    ).toLowerCase();
+  const text = (
+    (item.title || "") +
+    " " +
+    (item.description || "")
+  ).toLowerCase();
 
 
-  /* 군사/안보를 먼저 검사 */
+  /* -----------------------------------------
+     군사 / 안보
+     가장 먼저 검사
+  ----------------------------------------- */
 
   if (
-    /미사일|탄도미사일|icbm|slbm|핵무기|핵실험|핵탄두|군사|군대|무기|발사|포병|잠수함|전투기|훈련|도발|안보|국방|미군|한미연합|방사포|미사일시험/.test(text)
+    /미사일|
+    탄도미사일|
+    icbm|
+    slbm|
+    핵무기|
+    핵실험|
+    핵탄두|
+    군사|
+    군대|
+    무기|
+    발사|
+    포병|
+    잠수함|
+    전투기|
+    훈련|
+    도발|
+    안보|
+    국방|
+    미군|
+    한미연합|
+    방사포|
+    미사일시험|
+    군사훈련/.test(text)
   ) {
 
     return "군사/안보";
@@ -223,32 +224,36 @@ function getCategory(item) {
   }
 
 
-  /* 경제 */
+  /* -----------------------------------------
+     정치 / 외교
+  ----------------------------------------- */
 
   if (
-    /경제|무역|시장|식량|농업|산업|수출|수입|제재|금융|화폐|공장|기업|농산물|물가|경제협력|외화/.test(text)
-  ) {
-
-    return "경제";
-
-  }
-
-
-  /* 사회/문화 */
-
-  if (
-    /사회|문화|교육|학교|학생|체육|스포츠|예술|공연|주민|생활|보건|의료|병원|관광|영화|음악|문화예술/.test(text)
-  ) {
-
-    return "사회/문화";
-
-  }
-
-
-  /* 정치/외교 */
-
-  if (
-    /김정은|정치|외교|정상회담|회담|정상|북한|남북|통일|정부|대통령|미국|중국|러시아|일본|외무성|외무|대사|국무|당대회|노동당|지도자|한반도/.test(text)
+    /김정은|
+    정치|
+    외교|
+    정상회담|
+    회담|
+    정상|
+    북한|
+    남북|
+    통일|
+    정부|
+    대통령|
+    미국|
+    중국|
+    러시아|
+    일본|
+    외무성|
+    외무|
+    대사|
+    국무|
+    당대회|
+    노동당|
+    지도자|
+    북러|
+    북중|
+    한미/.test(text)
   ) {
 
     return "정치/외교";
@@ -256,12 +261,79 @@ function getCategory(item) {
   }
 
 
-  /* 기본값 */
+  /* -----------------------------------------
+     경제
+  ----------------------------------------- */
+
+  if (
+    /경제|
+    무역|
+    시장|
+    식량|
+    농업|
+    산업|
+    수출|
+    수입|
+    제재|
+    금융|
+    화폐|
+    공장|
+    기업|
+    농산물|
+    물가|
+    경제협력|
+    관광산업/.test(text)
+  ) {
+
+    return "경제";
+
+  }
+
+
+  /* -----------------------------------------
+     사회 / 문화
+  ----------------------------------------- */
+
+  if (
+    /사회|
+    문화|
+    교육|
+    학교|
+    학생|
+    체육|
+    스포츠|
+    예술|
+    공연|
+    주민|
+    생활|
+    보건|
+    의료|
+    병원|
+    관광|
+    영화|
+    음악|
+    청년|
+    어린이/.test(text)
+  ) {
+
+    return "사회/문화";
+
+  }
+
+
+  /* -----------------------------------------
+     분류되지 않은 북한 관련 기사는
+     정치/외교로 기본 분류
+  ----------------------------------------- */
 
   return "정치/외교";
 
 }
 
+
+/* =========================================================
+   카테고리 필터
+   ========================================================= */
 
 function match(item, category) {
 
@@ -272,249 +344,6 @@ function match(item, category) {
   return (
     getCategory(item) === category
   );
-
-}
-
-
-/* =========================================================
-   기본 이미지
-   ========================================================= */
-
-const FALLBACK_IMAGE =
-  "data:image/svg+xml;charset=UTF-8," +
-  encodeURIComponent(`
-    <svg xmlns="http://www.w3.org/2000/svg"
-         width="800"
-         height="500"
-         viewBox="0 0 800 500">
-
-      <rect
-        width="800"
-        height="500"
-        fill="#dfe5ef"/>
-
-      <rect
-        x="40"
-        y="40"
-        width="720"
-        height="420"
-        rx="35"
-        fill="#cbd5e1"/>
-
-      <text
-        x="400"
-        y="235"
-        text-anchor="middle"
-        font-size="85">
-        🇰🇵
-      </text>
-
-      <text
-        x="400"
-        y="330"
-        text-anchor="middle"
-        font-size="30"
-        font-family="Arial, sans-serif"
-        fill="#334155">
-        북한 NEWS
-      </text>
-
-    </svg>
-  `);
-
-
-/* =========================================================
-   이미지 URL 정리
-   ========================================================= */
-
-function cleanImageUrl(url) {
-
-  if (!url) {
-    return "";
-  }
-
-  let value =
-    String(url).trim();
-
-  if (!value) {
-    return "";
-  }
-
-  /* HTML entity */
-
-  value =
-    value
-      .replace(/&amp;/g, "&")
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'");
-
-  /* protocol-relative URL */
-
-  if (
-    value.startsWith("//")
-  ) {
-
-    value =
-      "https:" + value;
-
-  }
-
-  return value;
-
-}
-
-
-/* =========================================================
-   description에서 이미지 추출
-   ========================================================= */
-
-function extractImageFromHTML(html) {
-
-  if (!html) {
-    return "";
-  }
-
-  try {
-
-    const box =
-      document.createElement("div");
-
-    box.innerHTML = html;
-
-    const img =
-      box.querySelector("img");
-
-    if (!img) {
-      return "";
-    }
-
-    return cleanImageUrl(
-      img.getAttribute("src") ||
-      img.getAttribute("data-src") ||
-      img.getAttribute("data-original") ||
-      ""
-    );
-
-  } catch (e) {
-
-    return "";
-
-  }
-
-}
-
-
-/* =========================================================
-   이미지 추출
-   ========================================================= */
-
-function getImage(item) {
-
-  if (!item) {
-    return "";
-  }
-
-
-  /* 1 */
-
-  if (item.image) {
-
-    const url =
-      cleanImageUrl(item.image);
-
-    if (url) {
-      return url;
-    }
-
-  }
-
-
-  /* 2 */
-
-  if (item.thumbnail) {
-
-    const url =
-      cleanImageUrl(item.thumbnail);
-
-    if (url) {
-      return url;
-    }
-
-  }
-
-
-  /* 3 */
-
-  if (item.enclosure) {
-
-    if (
-      typeof item.enclosure === "string"
-    ) {
-
-      const url =
-        cleanImageUrl(
-          item.enclosure
-        );
-
-      if (url) {
-        return url;
-      }
-
-    }
-
-    if (
-      typeof item.enclosure === "object"
-    ) {
-
-      const url =
-        cleanImageUrl(
-          item.enclosure.link ||
-          item.enclosure.url ||
-          ""
-        );
-
-      if (url) {
-        return url;
-      }
-
-    }
-
-  }
-
-
-  /* 4 */
-
-  if (item.mediaContent) {
-
-    const url =
-      cleanImageUrl(
-        item.mediaContent
-      );
-
-    if (url) {
-      return url;
-    }
-
-  }
-
-
-  /* 5 */
-
-  if (item.description) {
-
-    const url =
-      extractImageFromHTML(
-        item.description
-      );
-
-    if (url) {
-      return url;
-    }
-
-  }
-
-
-  return "";
 
 }
 
@@ -533,6 +362,7 @@ function cats() {
     "사회/문화"
   ];
 
+
   return `
     <div class="cats">
 
@@ -543,9 +373,7 @@ function cats() {
             <button
               type="button"
               class="catBtn ${
-                cat === c
-                  ? "on"
-                  : ""
+                cat === c ? "on" : ""
               }"
               data-category="${esc(c)}">
 
@@ -565,6 +393,7 @@ function cats() {
 
 /* =========================================================
    기사 카드
+   이미지 없음
    ========================================================= */
 
 function card(item) {
@@ -572,12 +401,9 @@ function card(item) {
   const category =
     getCategory(item);
 
-  const image =
-    getImage(item) ||
-    FALLBACK_IMAGE;
-
   const saved =
     isSaved(item);
+
 
   return `
     <article
@@ -598,19 +424,17 @@ function card(item) {
             data-save-link="${esc(item.link)}"
             aria-label="기사 저장">
 
-            ${
-              saved
-                ? "🔖"
-                : "♡"
-            }
+            ${saved ? "🔖" : "♡"}
 
           </button>
 
         </div>
 
+
         <h3 class="news-title">
           ${esc(item.title)}
         </h3>
+
 
         <div class="source">
 
@@ -629,23 +453,6 @@ function card(item) {
           }
 
         </div>
-
-      </div>
-
-
-      <div class="news-image-wrap">
-
-        <img
-          class="news-image"
-          src="${esc(image)}"
-          alt=""
-          loading="lazy"
-          referrerpolicy="no-referrer"
-          onerror="
-            this.onerror=null;
-            this.src='${FALLBACK_IMAGE}'
-          "
-        >
 
       </div>
 
@@ -671,13 +478,16 @@ function list(items) {
 
         표시할 기사가 없습니다.<br>
 
-        잠시 후 새로고침해 주세요.
+        새로고침을 눌러
+        다시 확인해 주세요.
 
       </div>
     `;
 
   }
 
+
+  /* 최신순 정렬 */
 
   const sorted =
     [...items].sort(
@@ -701,10 +511,13 @@ function list(items) {
 
 
 /* =========================================================
-   화면
+   화면 렌더링
    ========================================================= */
 
 function render() {
+
+
+  /* 하단 메뉴 활성화 */
 
   document
     .querySelectorAll("nav button")
@@ -724,9 +537,9 @@ function render() {
     '<div class="content">';
 
 
-  /* =======================================================
+  /* =====================================================
      홈
-     ======================================================= */
+     ===================================================== */
 
   if (page === "home") {
 
@@ -752,7 +565,9 @@ function render() {
 
       </div>
 
+
       ${cats()}
+
 
       ${list(
         news.filter(
@@ -772,9 +587,9 @@ function render() {
   }
 
 
-  /* =======================================================
+  /* =====================================================
      뉴스
-     ======================================================= */
+     ===================================================== */
 
   else if (page === "news") {
 
@@ -784,7 +599,9 @@ function render() {
         최신 뉴스
       </div>
 
+
       ${cats()}
+
 
       ${list(
         news.filter(
@@ -804,9 +621,9 @@ function render() {
   }
 
 
-  /* =======================================================
+  /* =====================================================
      저장됨
-     ======================================================= */
+     ===================================================== */
 
   else if (page === "saved") {
 
@@ -815,6 +632,7 @@ function render() {
       <div class="title">
         저장됨
       </div>
+
 
       ${list(
         getSaved()
@@ -825,9 +643,9 @@ function render() {
   }
 
 
-  /* =======================================================
+  /* =====================================================
      알림
-     ======================================================= */
+     ===================================================== */
 
   else if (page === "alerts") {
 
@@ -836,6 +654,7 @@ function render() {
       <div class="title">
         알림
       </div>
+
 
       <div class="card">
 
@@ -850,6 +669,7 @@ function render() {
 
       </div>
 
+
       <div class="card">
 
         <b>
@@ -858,7 +678,6 @@ function render() {
 
         <p class="muted">
           앱을 열면 최신 뉴스를 확인합니다.
-          5분마다 자동으로 업데이트됩니다.
         </p>
 
       </div>
@@ -868,9 +687,9 @@ function render() {
   }
 
 
-  /* =======================================================
+  /* =====================================================
      설정
-     ======================================================= */
+     ===================================================== */
 
   else if (page === "settings") {
 
@@ -880,25 +699,26 @@ function render() {
         설정
       </div>
 
+
       <div class="card setting-card">
 
         <b>
           새 기사 알림
         </b>
 
+
         <input
           type="checkbox"
           id="notifyToggle"
           ${
-            localStorage.getItem(
-              "notify"
-            ) !== "off"
+            localStorage.getItem("notify") !== "off"
               ? "checked"
               : ""
           }
         >
 
       </div>
+
 
       <div class="card">
 
@@ -911,6 +731,7 @@ function render() {
         </p>
 
       </div>
+
 
       <div class="card">
 
@@ -929,9 +750,9 @@ function render() {
   }
 
 
-  /* =======================================================
+  /* =====================================================
      검색
-     ======================================================= */
+     ===================================================== */
 
   else if (page === "search") {
 
@@ -946,9 +767,11 @@ function render() {
 
       </button>
 
+
       <div class="title">
         뉴스 검색
       </div>
+
 
       <div class="row">
 
@@ -957,6 +780,7 @@ function render() {
           class="input"
           placeholder="북한, 김정은, 북핵, 미사일"
         >
+
 
         <button
           type="button"
@@ -969,6 +793,7 @@ function render() {
 
       </div>
 
+
       <div id="res"></div>
 
     `;
@@ -976,8 +801,7 @@ function render() {
   }
 
 
-  html +=
-    "</div>";
+  html += "</div>";
 
 
   main.innerHTML =
@@ -990,7 +814,7 @@ function render() {
 
 
 /* =========================================================
-   원문 기사 열기
+   기사 원문 열기
    ========================================================= */
 
 function openArticle(link) {
@@ -998,6 +822,7 @@ function openArticle(link) {
   if (!link) {
     return;
   }
+
 
   window.open(
     link,
@@ -1009,68 +834,74 @@ function openArticle(link) {
 
 
 /* =========================================================
-   화면 내부 이벤트
+   콘텐츠 이벤트
    ========================================================= */
 
 function bindContentEvents() {
 
 
-  /* -------------------------------------------------------
-     카테고리
-  ------------------------------------------------------- */
+  /* -----------------------------------------
+     카테고리 버튼
+  ----------------------------------------- */
 
   document
     .querySelectorAll(".catBtn")
     .forEach(
       function (button) {
 
-        button.onclick =
+        button.addEventListener(
+          "click",
           function (event) {
 
             event.preventDefault();
-
             event.stopPropagation();
+
 
             cat =
               button.dataset.category ||
               "전체";
 
-            page =
-              "news";
+
+            page = "news";
+
 
             render();
 
-          };
+          }
+        );
 
       }
     );
 
 
-  /* -------------------------------------------------------
+  /* -----------------------------------------
      기사 클릭
-  ------------------------------------------------------- */
+  ----------------------------------------- */
 
   document
     .querySelectorAll(".news-card")
     .forEach(
       function (cardElement) {
 
-        cardElement.onclick =
+        cardElement.addEventListener(
+          "click",
           function () {
 
-            openArticle(
-              cardElement.dataset.link
-            );
+            const link =
+              cardElement.dataset.link;
 
-          };
+            openArticle(link);
+
+          }
+        );
 
       }
     );
 
 
-  /* -------------------------------------------------------
-     저장
-  ------------------------------------------------------- */
+  /* -----------------------------------------
+     저장 버튼
+  ----------------------------------------- */
 
   document
     .querySelectorAll(
@@ -1079,42 +910,33 @@ function bindContentEvents() {
     .forEach(
       function (button) {
 
-        button.onclick =
+        button.addEventListener(
+          "click",
           function (event) {
 
             event.preventDefault();
-
             event.stopPropagation();
+
 
             const link =
               button.dataset.saveLink;
 
-            let item =
+
+            const item =
               news.find(
                 function (x) {
 
-                  return (
-                    x.link === link
-                  );
+                  return x.link === link;
+
+                }
+              ) ||
+              getSaved().find(
+                function (x) {
+
+                  return x.link === link;
 
                 }
               );
-
-
-            if (!item) {
-
-              item =
-                getSaved().find(
-                  function (x) {
-
-                    return (
-                      x.link === link
-                    );
-
-                  }
-                );
-
-            }
 
 
             if (item) {
@@ -1123,65 +945,73 @@ function bindContentEvents() {
 
             }
 
-          };
+          }
+        );
 
       }
     );
 
 
-  /* -------------------------------------------------------
+  /* -----------------------------------------
      뒤로
-  ------------------------------------------------------- */
+  ----------------------------------------- */
 
   const back =
     document.querySelector(
       "#backHome"
     );
 
+
   if (back) {
 
-    back.onclick =
+    back.addEventListener(
+      "click",
       function () {
 
-        page =
-          "home";
+        page = "home";
 
         render();
 
-      };
+      }
+    );
 
   }
 
 
-  /* -------------------------------------------------------
+  /* -----------------------------------------
      검색 버튼
-  ------------------------------------------------------- */
+  ----------------------------------------- */
 
   const searchSubmit =
     document.querySelector(
       "#searchSubmit"
     );
 
+
   if (searchSubmit) {
 
-    searchSubmit.onclick =
-      searchQ;
+    searchSubmit.addEventListener(
+      "click",
+      searchQ
+    );
 
   }
 
 
-  /* -------------------------------------------------------
-     알림
-  ------------------------------------------------------- */
+  /* -----------------------------------------
+     알림 설정
+  ----------------------------------------- */
 
   const notify =
     document.querySelector(
       "#notifyToggle"
     );
 
+
   if (notify) {
 
-    notify.onchange =
+    notify.addEventListener(
+      "change",
       function () {
 
         localStorage.setItem(
@@ -1191,7 +1021,8 @@ function bindContentEvents() {
             : "off"
         );
 
-      };
+      }
+    );
 
   }
 
@@ -1209,9 +1040,11 @@ function searchQ() {
       "#q"
     );
 
+
   if (!input) {
     return;
   }
+
 
   const q =
     input.value
@@ -1224,7 +1057,6 @@ function searchQ() {
       function (item) {
 
         return (
-
           (
             (item.title || "") +
             " " +
@@ -1234,7 +1066,6 @@ function searchQ() {
           )
             .toLowerCase()
             .includes(q)
-
         );
 
       }
@@ -1246,10 +1077,12 @@ function searchQ() {
       "#res"
     );
 
+
   if (resultBox) {
 
     resultBox.innerHTML =
       list(result);
+
 
     bindContentEvents();
 
@@ -1259,7 +1092,7 @@ function searchQ() {
 
 
 /* =========================================================
-   네트워크 요청
+   네트워크 데이터 가져오기
    ========================================================= */
 
 async function fetchText(url) {
@@ -1306,124 +1139,7 @@ async function fetchText(url) {
 
 
 /* =========================================================
-   RSS XML 이미지
-   ========================================================= */
-
-function getXMLImage(item) {
-
-
-  /* media:content */
-
-  const media =
-    item.querySelector(
-      "media\\:content, content"
-    );
-
-
-  if (media) {
-
-    const url =
-      cleanImageUrl(
-        media.getAttribute("url")
-      );
-
-    if (url) {
-      return url;
-    }
-
-  }
-
-
-  /* media:thumbnail */
-
-  const thumbnail =
-    item.querySelector(
-      "media\\:thumbnail, thumbnail"
-    );
-
-
-  if (thumbnail) {
-
-    const url =
-      cleanImageUrl(
-        thumbnail.getAttribute("url")
-      );
-
-    if (url) {
-      return url;
-    }
-
-  }
-
-
-  /* enclosure */
-
-  const enclosure =
-    item.querySelector(
-      "enclosure"
-    );
-
-
-  if (enclosure) {
-
-    const type =
-      enclosure.getAttribute(
-        "type"
-      ) || "";
-
-
-    const url =
-      cleanImageUrl(
-        enclosure.getAttribute(
-          "url"
-        )
-      );
-
-
-    if (
-      url &&
-      (
-        !type ||
-        type.startsWith("image/")
-      )
-    ) {
-
-      return url;
-
-    }
-
-  }
-
-
-  /* description */
-
-  const description =
-    item.querySelector(
-      "description"
-    );
-
-
-  if (description) {
-
-    const url =
-      extractImageFromHTML(
-        description.textContent || ""
-      );
-
-    if (url) {
-      return url;
-    }
-
-  }
-
-
-  return "";
-
-}
-
-
-/* =========================================================
-   RSS 파싱
+   RSS XML 파싱
    ========================================================= */
 
 function parseRSS(xmlText) {
@@ -1511,29 +1227,18 @@ function parseRSS(xmlText) {
             "";
 
 
-          const image =
-            getXMLImage(item);
-
-
           return {
 
-            title:
-              title,
+            title: title,
 
-            link:
-              link,
+            link: link,
 
-            source:
-              source,
+            source: source,
 
-            pub:
-              pub,
+            pub: pub,
 
             description:
-              description,
-
-            image:
-              image
+              description
 
           };
 
@@ -1575,28 +1280,21 @@ async function getFromRSS2JSON() {
 
   const url =
     "https://api.rss2json.com/v1/api.json?rss_url=" +
-    encodeURIComponent(
-      RSS
-    );
+    encodeURIComponent(RSS);
 
 
   const response =
-    await fetchText(
-      url
-    );
+    await fetchText(url);
 
 
   const data =
-    JSON.parse(
-      response
-    );
+    JSON.parse(response);
 
 
   if (
     !data ||
-    !Array.isArray(
-      data.items
-    )
+    data.status !== "ok" ||
+    !Array.isArray(data.items)
   ) {
 
     throw new Error(
@@ -1611,85 +1309,13 @@ async function getFromRSS2JSON() {
       .map(
         function (item) {
 
-          let image = "";
-
-
-          /* thumbnail */
-
-          if (
-            item.thumbnail
-          ) {
-
-            image =
-              item.thumbnail;
-
-          }
-
-
-          /* enclosure */
-
-          if (
-            !image &&
-            item.enclosure
-          ) {
-
-            if (
-              typeof item.enclosure ===
-              "string"
-            ) {
-
-              image =
-                item.enclosure;
-
-            } else {
-
-              image =
-                item.enclosure.link ||
-                item.enclosure.url ||
-                "";
-
-            }
-
-          }
-
-
-          /* media */
-
-          if (
-            !image &&
-            item.mediaContent
-          ) {
-
-            image =
-              item.mediaContent;
-
-          }
-
-
-          /* description */
-
-          if (
-            !image &&
-            item.description
-          ) {
-
-            image =
-              extractImageFromHTML(
-                item.description
-              );
-
-          }
-
-
           return {
 
             title:
-              item.title ||
-              "",
+              item.title || "",
 
             link:
-              item.link ||
-              "",
+              item.link || "",
 
             source:
               item.author ||
@@ -1697,17 +1323,10 @@ async function getFromRSS2JSON() {
               "Google News",
 
             pub:
-              item.pubDate ||
-              "",
+              item.pubDate || "",
 
             description:
-              item.description ||
-              "",
-
-            image:
-              cleanImageUrl(
-                image
-              )
+              item.description || ""
 
           };
 
@@ -1749,15 +1368,11 @@ async function getFromAllOrigins() {
 
   const url =
     "https://api.allorigins.win/raw?url=" +
-    encodeURIComponent(
-      RSS
-    );
+    encodeURIComponent(RSS);
 
 
   const xmlText =
-    await fetchText(
-      url
-    );
+    await fetchText(url);
 
 
   return parseRSS(
@@ -1774,9 +1389,7 @@ async function getFromAllOrigins() {
 async function getDirect() {
 
   const xmlText =
-    await fetchText(
-      RSS
-    );
+    await fetchText(RSS);
 
 
   return parseRSS(
@@ -1787,7 +1400,7 @@ async function getDirect() {
 
 
 /* =========================================================
-   데이터 정리
+   뉴스 데이터 정리
    ========================================================= */
 
 function normalizeNews(items) {
@@ -1796,7 +1409,7 @@ function normalizeNews(items) {
     new Map();
 
 
-  (items || []).forEach(
+  items.forEach(
     function (item) {
 
       if (
@@ -1810,43 +1423,13 @@ function normalizeNews(items) {
       }
 
 
-      const clean =
-        {
-
-          title:
-            item.title || "",
-
-          link:
-            item.link || "",
-
-          source:
-            item.source ||
-            "Google News",
-
-          pub:
-            item.pub ||
-            item.pubDate ||
-            "",
-
-          description:
-            item.description ||
-            "",
-
-          image:
-            getImage(item)
-
-        };
-
-
       if (
-        !map.has(
-          clean.link
-        )
+        !map.has(item.link)
       ) {
 
         map.set(
-          clean.link,
-          clean
+          item.link,
+          item
         );
 
       }
@@ -1878,17 +1461,16 @@ function normalizeNews(items) {
 function applyNews(result) {
 
   const normalized =
-    normalizeNews(
-      result
-    );
+    normalizeNews(result);
 
 
   if (
+    !normalized ||
     normalized.length === 0
   ) {
 
     throw new Error(
-      "기사 데이터 없음"
+      "정리된 기사 없음"
     );
 
   }
@@ -1931,18 +1513,10 @@ function applyNews(result) {
 
 
 /* =========================================================
-   새로고침
+   뉴스 새로고침
    ========================================================= */
 
 async function refresh() {
-
-  if (isRefreshing) {
-    return;
-  }
-
-
-  isRefreshing = true;
-
 
   const status =
     document.querySelector(
@@ -1958,9 +1532,9 @@ async function refresh() {
   }
 
 
-  /* -------------------------------------------------------
+  /* -----------------------------------------
      1. RSS2JSON
-  ------------------------------------------------------- */
+  ----------------------------------------- */
 
   try {
 
@@ -1968,29 +1542,24 @@ async function refresh() {
       await getFromRSS2JSON();
 
 
-    applyNews(
-      result
-    );
+    applyNews(result);
 
-
-    isRefreshing =
-      false;
 
     return;
 
   } catch (error) {
 
     console.log(
-      "RSS2JSON 실패",
+      "RSS2JSON 실패:",
       error
     );
 
   }
 
 
-  /* -------------------------------------------------------
+  /* -----------------------------------------
      2. AllOrigins
-  ------------------------------------------------------- */
+  ----------------------------------------- */
 
   try {
 
@@ -1998,29 +1567,24 @@ async function refresh() {
       await getFromAllOrigins();
 
 
-    applyNews(
-      result
-    );
+    applyNews(result);
 
-
-    isRefreshing =
-      false;
 
     return;
 
   } catch (error) {
 
     console.log(
-      "AllOrigins 실패",
+      "AllOrigins 실패:",
       error
     );
 
   }
 
 
-  /* -------------------------------------------------------
-     3. 직접 RSS
-  ------------------------------------------------------- */
+  /* -----------------------------------------
+     3. Google RSS 직접
+  ----------------------------------------- */
 
   try {
 
@@ -2028,29 +1592,25 @@ async function refresh() {
       await getDirect();
 
 
-    applyNews(
-      result
-    );
+    applyNews(result);
 
-
-    isRefreshing =
-      false;
 
     return;
 
   } catch (error) {
 
     console.log(
-      "직접 RSS 실패",
+      "Google RSS 직접 요청 실패:",
       error
     );
 
   }
 
 
-  /* -------------------------------------------------------
-     4. 기존 데이터
-  ------------------------------------------------------- */
+  /* -----------------------------------------
+     4. 인터넷 실패 시
+        기존 데이터 사용
+  ----------------------------------------- */
 
   try {
 
@@ -2063,12 +1623,8 @@ async function refresh() {
 
 
     news =
-      Array.isArray(
-        savedNews
-      )
-        ? normalizeNews(
-            savedNews
-          )
+      Array.isArray(savedNews)
+        ? normalizeNews(savedNews)
         : [];
 
   } catch (error) {
@@ -2090,10 +1646,6 @@ async function refresh() {
 
   render();
 
-
-  isRefreshing =
-    false;
-
 }
 
 
@@ -2109,12 +1661,10 @@ const refreshButton =
 
 if (refreshButton) {
 
-  refreshButton.onclick =
-    function () {
-
-      refresh();
-
-    };
+  refreshButton.addEventListener(
+    "click",
+    refresh
+  );
 
 }
 
@@ -2131,12 +1681,10 @@ const quickButton =
 
 if (quickButton) {
 
-  quickButton.onclick =
-    function () {
-
-      refresh();
-
-    };
+  quickButton.addEventListener(
+    "click",
+    refresh
+  );
 
 }
 
@@ -2153,15 +1701,16 @@ const searchButton =
 
 if (searchButton) {
 
-  searchButton.onclick =
+  searchButton.addEventListener(
+    "click",
     function () {
 
-      page =
-        "search";
+      page = "search";
 
       render();
 
-    };
+    }
+  );
 
 }
 
@@ -2177,16 +1726,17 @@ document
   .forEach(
     function (button) {
 
-      button.onclick =
+      button.addEventListener(
+        "click",
         function () {
 
           page =
-            button.dataset.p ||
-            "home";
+            button.dataset.p;
 
           render();
 
-        };
+        }
+      );
 
     }
   );
@@ -2201,9 +1751,7 @@ if (
 ) {
 
   navigator.serviceWorker
-    .register(
-      "sw.js"
-    )
+    .register("sw.js")
     .catch(
       function (error) {
 
@@ -2233,9 +1781,7 @@ try {
 
 
   if (
-    Array.isArray(
-      oldNews
-    )
+    Array.isArray(oldNews)
   ) {
 
     news =
@@ -2260,21 +1806,17 @@ render();
 
 
 /* =========================================================
-   앱 시작
+   앱 시작 즉시 뉴스 가져오기
    ========================================================= */
 
 refresh();
 
 
 /* =========================================================
-   5분 자동 업데이트
+   5분마다 자동 업데이트
    ========================================================= */
 
 setInterval(
-  function () {
-
-    refresh();
-
-  },
+  refresh,
   5 * 60 * 1000
 );
