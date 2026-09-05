@@ -1,29 +1,19 @@
 /* =========================================================
-   북한 NEWS Monitor - Service Worker
-   캐시 문제 방지 버전
+   북한 NEWS Monitor
+   Service Worker
+   PWA 안정화 버전
    ========================================================= */
 
-"use strict";
-
-
-/* =========================================================
-   캐시 버전
-   ========================================================= */
-
-const CACHE_NAME =
-  "north-korea-news-v20260905-01";
-
-
-/* =========================================================
-   앱 파일
-   ========================================================= */
+const CACHE_NAME = "nknews-pwa-v3";
 
 const APP_FILES = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
-  "./manifest.json"
+  "./manifest.webmanifest",
+  "./icon-192.png",
+  "./icon-512.png"
 ];
 
 
@@ -35,42 +25,17 @@ self.addEventListener(
   "install",
   function (event) {
 
-    console.log(
-      "[SW] install"
-    );
-
-
     event.waitUntil(
 
-      caches.open(
-        CACHE_NAME
-      )
-      .then(
-        function (cache) {
+      caches
+        .open(CACHE_NAME)
+        .then(function (cache) {
 
-          return cache.addAll(
-            APP_FILES
-          );
+          return cache.addAll(APP_FILES);
 
-        }
-      )
-      .catch(
-        function (error) {
-
-          console.log(
-            "[SW] 초기 캐시 실패:",
-            error
-          );
-
-        }
-      )
+        })
 
     );
-
-
-    /*
-       새 SW 즉시 활성화
-    */
 
     self.skipWaiting();
 
@@ -86,71 +51,40 @@ self.addEventListener(
   "activate",
   function (event) {
 
-    console.log(
-      "[SW] activate"
-    );
-
-
     event.waitUntil(
 
-      caches.keys()
-        .then(
-          function (keys) {
+      caches
+        .keys()
+        .then(function (cacheNames) {
 
-            return Promise.all(
+          return Promise.all(
 
-              keys
-                .filter(
-                  function (key) {
+            cacheNames
+              .filter(function (name) {
 
-                    return (
-                      key !==
-                      CACHE_NAME
-                    );
+                return name !== CACHE_NAME;
 
-                  }
-                )
-                .map(
-                  function (key) {
+              })
+              .map(function (name) {
 
-                    console.log(
-                      "[SW] 오래된 캐시 삭제:",
-                      key
-                    );
+                return caches.delete(name);
 
+              })
 
-                    return caches.delete(
-                      key
-                    );
+          );
 
-                  }
-                )
-
-            );
-
-          }
-        )
-        .then(
-          function () {
-
-            /*
-               현재 열려 있는 페이지까지
-               새 SW를 즉시 적용
-            */
-
-            return self.clients.claim();
-
-          }
-        )
+        })
 
     );
+
+    self.clients.claim();
 
   }
 );
 
 
 /* =========================================================
-   FETCH
+   요청 처리
    ========================================================= */
 
 self.addEventListener(
@@ -160,258 +94,96 @@ self.addEventListener(
     const request =
       event.request;
 
-
     /*
-       GET만 처리
+       GET 요청만 처리
     */
 
-    if (
-      request.method !== "GET"
-    ) {
-
+    if (request.method !== "GET") {
       return;
-
     }
 
 
     const url =
-      new URL(
-        request.url
-      );
+      new URL(request.url);
 
 
-    /* =====================================================
-       뉴스 API / RSS
-       =====================================================
+    /*
+       외부 뉴스 서버 / API는
+       Service Worker 캐시를 사용하지 않습니다.
 
-       절대로 캐시하지 않습니다.
+       → 항상 최신 데이터를 가져오도록 함
     */
 
     if (
-      url.hostname ===
-        "api.rss2json.com" ||
-
-      url.hostname ===
-        "api.allorigins.win" ||
-
-      url.hostname ===
-        "news.google.com"
+      url.hostname !== location.hostname
     ) {
-
-      event.respondWith(
-
-        fetch(
-          request,
-          {
-            cache: "no-store"
-          }
-        )
-
-      );
 
       return;
 
     }
 
 
-    /* =====================================================
-       앱 HTML
-       =====================================================
-
-       항상 네트워크 우선.
-       오래된 index.html 방지.
-    */
-
-    if (
-      request.mode === "navigate" ||
-      url.pathname.endsWith(
-        "/index.html"
-      )
-    ) {
-
-      event.respondWith(
-
-        fetch(
-          request,
-          {
-            cache: "no-store"
-          }
-        )
-        .then(
-          function (response) {
-
-            /*
-               최신 HTML 저장
-            */
-
-            const copy =
-              response.clone();
-
-
-            caches.open(
-              CACHE_NAME
-            )
-            .then(
-              function (cache) {
-
-                cache.put(
-                  request,
-                  copy
-                );
-
-              }
-            );
-
-
-            return response;
-
-          }
-        )
-        .catch(
-          function () {
-
-            /*
-               네트워크가 완전히 끊긴 경우에만
-               캐시 사용
-            */
-
-            return caches.match(
-              request
-            );
-
-          }
-        )
-
-      );
-
-      return;
-
-    }
-
-
-    /* =====================================================
-       app.js / styles.css
-       =====================================================
-
-       항상 네트워크 우선.
-       이전 버전 JS/CSS가 남는 것을 방지합니다.
-    */
-
-    if (
-      url.pathname.endsWith(
-        "/app.js"
-      ) ||
-      url.pathname.endsWith(
-        "/styles.css"
-      ) ||
-      url.pathname.endsWith(
-        "/manifest.json"
-      )
-    ) {
-
-      event.respondWith(
-
-        fetch(
-          request,
-          {
-            cache: "no-store"
-          }
-        )
-        .then(
-          function (response) {
-
-            const copy =
-              response.clone();
-
-
-            caches.open(
-              CACHE_NAME
-            )
-            .then(
-              function (cache) {
-
-                cache.put(
-                  request,
-                  copy
-                );
-
-              }
-            );
-
-
-            return response;
-
-          }
-        )
-        .catch(
-          function () {
-
-            return caches.match(
-              request
-            );
-
-          }
-        )
-
-      );
-
-      return;
-
-    }
-
-
-    /* =====================================================
-       기타 파일
-       =====================================================
-
-       일반적인 캐시 우선.
+    /*
+       우리 사이트의 파일만 처리
     */
 
     event.respondWith(
 
-      caches.match(
-        request
-      )
-      .then(
-        function (cached) {
+      fetch(request)
+        .then(function (response) {
 
-          if (cached) {
+          /*
+             정상 응답이면 최신 파일을
+             캐시에 저장
+          */
 
-            return cached;
+          if (
+            response &&
+            response.status === 200
+          ) {
+
+            const copy =
+              response.clone();
+
+            caches
+              .open(CACHE_NAME)
+              .then(function (cache) {
+
+                cache.put(
+                  request,
+                  copy
+                );
+
+              });
 
           }
 
+          return response;
 
-          return fetch(
-            request
-          );
+        })
+        .catch(function () {
 
-        }
-      )
+          /*
+             인터넷이 없을 때만
+             캐시 사용
+          */
+
+          return caches.match(request)
+            .then(function (cached) {
+
+              if (cached) {
+                return cached;
+              }
+
+              return caches.match(
+                "./index.html"
+              );
+
+            });
+
+        })
 
     );
-
-  }
-);
-
-
-/* =========================================================
-   메시지
-   ========================================================= */
-
-self.addEventListener(
-  "message",
-  function (event) {
-
-    if (
-      event.data &&
-      event.data.type ===
-        "SKIP_WAITING"
-    ) {
-
-      self.skipWaiting();
-
-    }
 
   }
 );
