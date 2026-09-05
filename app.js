@@ -1,53 +1,36 @@
-// ============================================================
-// 북한 NEWS Monitor - app.js
-// ============================================================
-
-// Google News RSS
 const RSS =
   "https://news.google.com/rss/search?q=%EB%B6%81%ED%95%9C+OR+%EA%B9%80%EC%A0%95%EC%9D%80+OR+%EB%B6%81%ED%95%B5+OR+%EB%AF%B8%EC%82%AC%EC%9D%BC&hl=ko&gl=KR&ceid=KR:ko";
 
-// ------------------------------------------------------------
-// 기본 상태
-// ------------------------------------------------------------
-
 let news = [];
-
-try {
-  news = JSON.parse(localStorage.getItem("news") || "[]");
-} catch (e) {
-  news = [];
-}
-
 let page = "home";
 let cat = "전체";
 
 const main = document.querySelector("#main");
-const statusEl = document.querySelector("#status");
 
-// ------------------------------------------------------------
-// HTML 특수문자 처리
-// ------------------------------------------------------------
+const esc = (s) =>
+  String(s || "").replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[c]));
 
-function esc(value) {
-  return String(value || "").replace(
-    /[&<>"']/g,
-    function (c) {
-      return {
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;"
-      }[c];
-    }
-  );
+function loadNews() {
+  try {
+    return JSON.parse(localStorage.getItem("news") || "[]");
+  } catch (e) {
+    return [];
+  }
 }
 
-// ------------------------------------------------------------
-// 저장 기사
-// ------------------------------------------------------------
+function saveNews(data) {
+  localStorage.setItem("news", JSON.stringify(data));
+}
 
-function getSaved() {
+news = loadNews();
+
+function saved() {
   try {
     return JSON.parse(localStorage.getItem("saved") || "[]");
   } catch (e) {
@@ -55,337 +38,192 @@ function getSaved() {
   }
 }
 
-function isSaved(article) {
-  return getSaved().some(function (item) {
-    return item.link === article.link;
-  });
+function isSaved(n) {
+  return saved().some((x) => x.link === n.link);
 }
 
-function toggleSave(article) {
-  let list = getSaved();
+function toggle(n) {
+  let a = saved();
+  const i = a.findIndex((x) => x.link === n.link);
 
-  const index = list.findIndex(function (item) {
-    return item.link === article.link;
-  });
-
-  if (index >= 0) {
-    list.splice(index, 1);
+  if (i >= 0) {
+    a.splice(i, 1);
   } else {
-    list.unshift(article);
+    a.unshift(n);
   }
 
-  localStorage.setItem("saved", JSON.stringify(list));
-
+  localStorage.setItem("saved", JSON.stringify(a));
   render();
 }
 
-// ------------------------------------------------------------
-// 카테고리
-// ------------------------------------------------------------
+function match(n, c) {
+  if (c === "전체") return true;
 
-function matchCategory(article, category) {
-
-  if (category === "전체") {
-    return true;
-  }
-
-  const keywords = {
-    "정치/외교":
-      "정치|외교|회담|정상회담|러시아|중국|미국|한국|남북|대화|협상|김정은",
-
-    "군사/안보":
-      "미사일|핵|군|무기|발사|안보|잠수함|탄도|ICBM|군사|훈련|미사일",
-
-    "경제":
-      "경제|무역|시장|식량|농업|제재|산업|공장|수출|수입|금융",
-
-    "사회/문화":
-      "사회|문화|교육|체육|주민|생활|학교|예술|공연|관광"
+  const map = {
+    "정치/외교": "정치|외교|회담|러시아|중국|미국|정상|외무",
+    "군사/안보": "미사일|핵|군|무기|발사|안보|군사|미군|북핵",
+    "경제": "경제|무역|시장|식량|농업|제재|수출|수입",
+    "사회/문화": "사회|문화|교육|체육|주민|학교|선수|예술"
   };
 
-  const pattern = keywords[category];
+  const keyword = map[c];
 
-  if (!pattern) {
-    return true;
-  }
+  if (!keyword) return true;
 
-  const text =
-    (article.title || "") +
-    " " +
-    (article.description || "");
-
-  return new RegExp(pattern, "i").test(text);
+  return new RegExp(keyword, "i").test(
+    (n.title || "") + " " + (n.source || "")
+  );
 }
 
-// ------------------------------------------------------------
-// 카테고리 버튼
-// ------------------------------------------------------------
-
-function categoryButtons() {
-
-  const categories = [
-    "전체",
-    "정치/외교",
-    "군사/안보",
-    "경제",
-    "사회/문화"
-  ];
-
+function cats() {
   return `
     <div class="cats">
-      ${categories
-        .map(function (category) {
-
-          return `
+      ${[
+        "전체",
+        "정치/외교",
+        "군사/안보",
+        "경제",
+        "사회/문화"
+      ]
+        .map(
+          (c) => `
             <button
-              class="${cat === category ? "on" : ""}"
-              onclick="selectCategory('${category}')"
+              class="${cat === c ? "on" : ""}"
+              onclick="cat='${c}';page='news';render()"
             >
-              ${category}
+              ${c}
             </button>
-          `;
-
-        })
+          `
+        )
         .join("")}
     </div>
   `;
 }
 
-function selectCategory(category) {
-  cat = category;
-  page = "news";
-  render();
-}
-
-// ------------------------------------------------------------
-// 기사 카드
-// ------------------------------------------------------------
-
-function articleCard(article) {
-
-  const json = JSON.stringify(article)
-    .replace(/\\/g, "\\\\")
-    .replace(/'/g, "&#39;");
+function card(n) {
+  const j = JSON.stringify(n).replace(/'/g, "&#39;");
 
   return `
-    <div class="card article-card"
-         onclick='openDetail(${json})'>
-
+    <div class="card" onclick='detail(${j})'>
       <div class="top">
-
-        <span class="new">
-          NEW
-        </span>
+        <span class="new">NEW</span>
 
         <button
           class="save"
-          onclick='event.stopPropagation();toggleSave(${json})'
+          onclick='event.stopPropagation();toggle(${j})'
         >
-          ${isSaved(article) ? "🔖" : "♡"}
+          ${isSaved(n) ? "🔖" : "♡"}
         </button>
-
       </div>
 
-      <h3>
-        ${esc(article.title)}
-      </h3>
+      <h3>${esc(n.title)}</h3>
 
       <div class="source">
-        ${esc(article.source || "출처 미상")}
+        ${esc(n.source || "출처 미상")}
         ·
-        ${esc(article.pub || "최근")}
+        ${esc(n.pub || "최근")}
       </div>
-
     </div>
   `;
 }
 
-// ------------------------------------------------------------
-// 기사 목록
-// ------------------------------------------------------------
-
-function articleList(list) {
-
-  if (!list || list.length === 0) {
-
+function list(a) {
+  if (!a || !a.length) {
     return `
       <div class="empty">
-        표시할 기사가 없습니다.
-        <br><br>
-        위의 ↻ 버튼을 눌러 다시 확인해 주세요.
+        표시할 기사가 없습니다.<br>
+        새로고침을 눌러 다시 확인해 주세요.
       </div>
     `;
   }
 
-  return list
-    .slice(0, 30)
-    .map(articleCard)
-    .join("");
+  return a.slice(0, 30).map(card).join("");
 }
 
-// ------------------------------------------------------------
-// 홈 / 뉴스 / 저장 / 알림 / 설정 / 검색 화면
-// ------------------------------------------------------------
-
 function render() {
-
-  if (!main) {
-    return;
-  }
-
   document
     .querySelectorAll("nav button")
-    .forEach(function (button) {
+    .forEach((b) =>
+      b.classList.toggle("active", b.dataset.p === page)
+    );
 
-      button.classList.toggle(
-        "active",
-        button.dataset.p === page
-      );
-
-    });
-
-  let html = `<div class="content">`;
-
-  // ----------------------------------------------------------
-  // 홈
-  // ----------------------------------------------------------
+  let h = '<div class="content">';
 
   if (page === "home") {
-
-    html += `
-
+    h += `
       <div class="card notice">
-
-        <div style="font-size:28px">
-          🔔
-        </div>
+        <div>🔔</div>
 
         <div>
           <b>새로운 기사가 도착했습니다</b>
-
           <div class="muted">
             최신 북한 관련 뉴스를 확인하세요
           </div>
         </div>
-
       </div>
 
-      ${categoryButtons()}
+      ${cats()}
 
-      ${articleList(
-        news.filter(function (article) {
-          return matchCategory(article, cat);
-        })
-      )}
-
+      ${list(news.filter((n) => match(n, cat)))}
     `;
   }
-
-  // ----------------------------------------------------------
-  // 뉴스
-  // ----------------------------------------------------------
 
   else if (page === "news") {
+    h += `
+      <div class="title">최신 뉴스</div>
 
-    html += `
+      ${cats()}
 
-      <div class="title">
-        최신 뉴스
-      </div>
-
-      ${categoryButtons()}
-
-      ${articleList(
-        news.filter(function (article) {
-          return matchCategory(article, cat);
-        })
-      )}
-
+      ${list(news.filter((n) => match(n, cat)))}
     `;
   }
-
-  // ----------------------------------------------------------
-  // 저장됨
-  // ----------------------------------------------------------
 
   else if (page === "saved") {
-
-    html += `
-
-      <div class="title">
-        저장됨
-      </div>
-
-      ${articleList(getSaved())}
-
+    h += `
+      <div class="title">저장됨</div>
+      ${list(saved())}
     `;
   }
 
-  // ----------------------------------------------------------
-  // 알림
-  // ----------------------------------------------------------
-
   else if (page === "alerts") {
-
-    html += `
-
-      <div class="title">
-        알림
-      </div>
+    h += `
+      <div class="title">알림</div>
 
       <div class="card">
-
-        <b>
-          🔔 새 기사 알림
-        </b>
+        <b>🔔 새 기사 알림</b>
 
         <p class="muted">
           새로운 북한 관련 기사가 수집되면
           이 화면에서 확인할 수 있습니다.
         </p>
-
       </div>
 
       <div class="card">
-
-        <b>
-          자동 업데이트
-        </b>
+        <b>자동 업데이트</b>
 
         <p class="muted">
-          앱을 열면 즉시 뉴스를 확인합니다.
-          평상시에는 5분마다 자동으로 확인합니다.
+          앱을 열면 즉시 확인합니다.
+          백그라운드 갱신은 브라우저/OS 정책에 따라
+          제한될 수 있습니다.
         </p>
-
       </div>
-
     `;
   }
 
-  // ----------------------------------------------------------
-  // 설정
-  // ----------------------------------------------------------
-
   else if (page === "settings") {
-
-    const notificationEnabled =
-      localStorage.getItem("notify") !== "off";
-
-    html += `
-
-      <div class="title">
-        설정
-      </div>
+    h += `
+      <div class="title">설정</div>
 
       <div class="card">
-
-        <b>
-          새 기사 알림
-        </b>
+        <b>새 기사 알림</b>
 
         <input
           type="checkbox"
-          ${notificationEnabled ? "checked" : ""}
+          ${
+            localStorage.getItem("notify") !== "off"
+              ? "checked"
+              : ""
+          }
           onchange="
             localStorage.setItem(
               'notify',
@@ -393,57 +231,28 @@ function render() {
             )
           "
         >
-
       </div>
 
       <div class="card">
-
-        <b>
-          자동 업데이트
-        </b>
+        <b>뉴스 소스</b>
 
         <p class="muted">
-          앱 실행 시 즉시 업데이트하며
-          평상시 5분마다 확인합니다.
+          Google News RSS 기반
         </p>
-
       </div>
 
       <div class="card">
-
-        <b>
-          뉴스 소스
-        </b>
-
-        <p class="muted">
-          Google News RSS
-        </p>
-
-      </div>
-
-      <div class="card">
-
-        <b>
-          앱 정보
-        </b>
+        <b>앱 정보</b>
 
         <p class="muted">
           북한 NEWS Monitor · PWA v1.0
         </p>
-
       </div>
-
     `;
   }
 
-  // ----------------------------------------------------------
-  // 검색
-  // ----------------------------------------------------------
-
   else if (page === "search") {
-
-    html += `
-
+    h += `
       <button
         class="back"
         onclick="page='home';render()"
@@ -451,12 +260,9 @@ function render() {
         ‹ 뒤로
       </button>
 
-      <div class="title">
-        뉴스 검색
-      </div>
+      <div class="title">뉴스 검색</div>
 
       <div class="row">
-
         <input
           id="q"
           class="input"
@@ -466,36 +272,23 @@ function render() {
         <button
           class="btn"
           style="width:90px;margin:0"
-          onclick="searchNews()"
+          onclick="searchQ()"
         >
           검색
         </button>
-
       </div>
 
-      <div id="res">
-      </div>
-
+      <div id="res"></div>
     `;
   }
 
-  html += `</div>`;
-
-  main.innerHTML = html;
+  main.innerHTML = h + "</div>";
 }
 
-// ------------------------------------------------------------
-// 기사 상세
-// ------------------------------------------------------------
-
-function openDetail(article) {
-
-  const json = JSON.stringify(article)
-    .replace(/\\/g, "\\\\")
-    .replace(/'/g, "&#39;");
+function detail(n) {
+  const j = JSON.stringify(n).replace(/'/g, "&#39;");
 
   main.innerHTML = `
-
     <div class="content detail">
 
       <button
@@ -505,39 +298,33 @@ function openDetail(article) {
         ‹ 뒤로
       </button>
 
-      <h2>
-        ${esc(article.title)}
-      </h2>
+      <h2>${esc(n.title)}</h2>
 
       <div class="muted">
-        ${esc(article.source || "")}
+        ${esc(n.source || "출처 미상")}
         ·
-        ${esc(article.pub || "")}
+        ${esc(n.pub || "")}
       </div>
 
       <div class="card">
-
-        <b>
-          기사 안내
-        </b>
+        <b>기사 안내</b>
 
         <p class="muted">
           수집된 기사 제목과 출처입니다.
-          원문은 아래 버튼을 눌러 확인할 수 있습니다.
+          원문은 아래 버튼으로 확인할 수 있습니다.
         </p>
-
       </div>
 
       <button
         class="btn"
-        onclick='toggleSave(${json});openDetail(${json})'
+        onclick='toggle(${j});detail(${j})'
       >
-        ${isSaved(article) ? "저장 취소" : "기사 저장"}
+        ${isSaved(n) ? "저장 취소" : "기사 저장"}
       </button>
 
       <button
         class="btn"
-        onclick='openOriginal(${JSON.stringify(article.link)})'
+        onclick='window.open(${JSON.stringify(n.link)}, "_blank")'
       >
         원문 기사 열기
       </button>
@@ -546,434 +333,283 @@ function openDetail(article) {
   `;
 }
 
-function openOriginal(url) {
-
-  if (!url) {
-    return;
-  }
-
-  window.open(
-    url,
-    "_blank",
-    "noopener,noreferrer"
-  );
-}
-
-// ------------------------------------------------------------
-// 검색
-// ------------------------------------------------------------
-
-function searchNews() {
-
+function searchQ() {
   const input = document.querySelector("#q");
 
-  const resultBox =
-    document.querySelector("#res");
+  if (!input) return;
 
-  if (!input || !resultBox) {
-    return;
-  }
+  const q = input.value.trim().toLowerCase();
 
-  const keyword =
-    input.value.trim().toLowerCase();
-
-  if (!keyword) {
-
-    resultBox.innerHTML = `
-      <div class="empty">
-        검색어를 입력해 주세요.
-      </div>
-    `;
-
-    return;
-  }
-
-  const result = news.filter(function (article) {
-
-    const text =
-      (article.title || "") +
-      " " +
-      (article.source || "") +
-      " " +
-      (article.description || "");
-
-    return text
+  const result = news.filter((n) =>
+    ((n.title || "") + " " + (n.source || ""))
       .toLowerCase()
-      .includes(keyword);
+      .includes(q)
+  );
 
-  });
-
-  resultBox.innerHTML =
-    articleList(result);
+  document.querySelector("#res").innerHTML = list(result);
 }
 
-// ------------------------------------------------------------
-// RSS XML → 기사 변환
-// ------------------------------------------------------------
 
-function parseRSS(xmlText) {
+/* =========================================
+   RSS 가져오기
+   여러 주소를 차례대로 시도
+   ========================================= */
 
-  const parser =
-    new DOMParser();
+async function fetchRSS() {
 
-  const xml =
-    parser.parseFromString(
+  /* 방법 1 : AllOrigins */
+  try {
+    const url =
+      "https://api.allorigins.win/raw?url=" +
+      encodeURIComponent(RSS);
+
+    const response = await fetch(url, {
+      cache: "no-store"
+    });
+
+    if (response.ok) {
+      const text = await response.text();
+
+      if (text && text.includes("<item")) {
+        return text;
+      }
+    }
+  } catch (e) {
+    console.log("AllOrigins 실패");
+  }
+
+
+  /* 방법 2 : CorsProxy */
+  try {
+    const url =
+      "https://corsproxy.io/?" +
+      encodeURIComponent(RSS);
+
+    const response = await fetch(url, {
+      cache: "no-store"
+    });
+
+    if (response.ok) {
+      const text = await response.text();
+
+      if (text && text.includes("<item")) {
+        return text;
+      }
+    }
+  } catch (e) {
+    console.log("CorsProxy 실패");
+  }
+
+
+  /* 방법 3 : AllOrigins GET */
+  try {
+    const url =
+      "https://api.allorigins.win/get?url=" +
+      encodeURIComponent(RSS);
+
+    const response = await fetch(url, {
+      cache: "no-store"
+    });
+
+    if (response.ok) {
+      const json = await response.json();
+
+      if (
+        json &&
+        json.contents &&
+        json.contents.includes("<item")
+      ) {
+        return json.contents;
+      }
+    }
+  } catch (e) {
+    console.log("AllOrigins GET 실패");
+  }
+
+
+  throw new Error("RSS를 가져오지 못했습니다.");
+}
+
+
+/* =========================================
+   뉴스 새로고침
+   ========================================= */
+
+async function refresh() {
+
+  const status = document.querySelector("#status");
+
+  if (status) {
+    status.textContent = "최신 뉴스 확인 중...";
+  }
+
+  try {
+
+    const xmlText = await fetchRSS();
+
+    const xml = new DOMParser().parseFromString(
       xmlText,
       "text/xml"
     );
 
-  const parserError =
-    xml.querySelector("parsererror");
+    const items = [
+      ...xml.querySelectorAll("item")
+    ];
 
-  if (parserError) {
-    throw new Error(
-      "RSS XML을 읽을 수 없습니다."
-    );
-  }
-
-  const items =
-    [...xml.querySelectorAll("item")];
-
-  if (!items.length) {
-    throw new Error(
-      "RSS 기사 항목이 없습니다."
-    );
-  }
-
-  return items
-    .slice(0, 30)
-    .map(function (item) {
-
-      return {
-
-        title:
-          item.querySelector("title")
-            ?.textContent
-            ?.trim() || "",
-
-        link:
-          item.querySelector("link")
-            ?.textContent
-            ?.trim() || "",
-
-        source:
-          item.querySelector("source")
-            ?.textContent
-            ?.trim() ||
-          "Google News",
-
-        pub:
-          item.querySelector("pubDate")
-            ?.textContent
-            ?.trim() || "",
-
-        description:
-          item.querySelector("description")
-            ?.textContent
-            ?.trim() || ""
-
-      };
-
-    })
-    .filter(function (article) {
-
-      return article.title &&
-             article.link;
-
-    });
-}
-
-// ------------------------------------------------------------
-// RSS 가져오기
-// ------------------------------------------------------------
-
-async function fetchRSS() {
-
-  // 첫 번째 방법
-  const allOriginsURL =
-    "https://api.allorigins.win/raw?url=" +
-    encodeURIComponent(RSS);
-
-  try {
-
-    const response =
-      await fetch(
-        allOriginsURL,
-        {
-          cache: "no-store"
-        }
-      );
-
-    if (!response.ok) {
-      throw new Error(
-        "AllOrigins HTTP " +
-        response.status
-      );
+    if (!items.length) {
+      throw new Error("뉴스 항목이 없습니다.");
     }
 
-    const text =
-      await response.text();
+    const newNews = items
+      .slice(0, 30)
+      .map((item) => {
 
-    const articles =
-      parseRSS(text);
+        const title =
+          item.querySelector("title")?.textContent?.trim() || "";
 
-    if (articles.length) {
-      return articles;
+        const link =
+          item.querySelector("link")?.textContent?.trim() || "";
+
+        const source =
+          item.querySelector("source")?.textContent?.trim() ||
+          "Google News";
+
+        const pub =
+          item.querySelector("pubDate")?.textContent?.trim() ||
+          "";
+
+        return {
+          title,
+          link,
+          source,
+          pub
+        };
+
+      })
+      .filter((n) => n.title && n.link);
+
+
+    if (!newNews.length) {
+      throw new Error("뉴스 데이터가 비어 있습니다.");
     }
 
-  } catch (error) {
 
-    console.log(
-      "첫 번째 RSS 접근 실패:",
-      error
-    );
+    news = newNews;
 
-  }
+    saveNews(news);
 
-  // 두 번째 방법
-  const corsProxy =
-    "https://corsproxy.io/?" +
-    encodeURIComponent(RSS);
 
-  try {
-
-    const response =
-      await fetch(
-        corsProxy,
-        {
-          cache: "no-store"
-        }
-      );
-
-    if (!response.ok) {
-      throw new Error(
-        "CorsProxy HTTP " +
-        response.status
-      );
-    }
-
-    const text =
-      await response.text();
-
-    const articles =
-      parseRSS(text);
-
-    if (articles.length) {
-      return articles;
-    }
-
-  } catch (error) {
-
-    console.log(
-      "두 번째 RSS 접근 실패:",
-      error
-    );
-
-  }
-
-  throw new Error(
-    "뉴스 RSS를 가져오지 못했습니다."
-  );
-}
-
-// ------------------------------------------------------------
-// 뉴스 업데이트
-// ------------------------------------------------------------
-
-async function refresh() {
-
-  if (statusEl) {
-
-    statusEl.textContent =
-      "최신 뉴스 확인 중...";
-
-  }
-
-  try {
-
-    const articles =
-      await fetchRSS();
-
-    news = articles;
-
-    localStorage.setItem(
-      "news",
-      JSON.stringify(news)
-    );
-
-    const time =
-      new Date().toLocaleTimeString(
-        "ko-KR",
-        {
-          hour: "2-digit",
-          minute: "2-digit"
-        }
-      );
-
-    if (statusEl) {
-
-      statusEl.textContent =
+    if (status) {
+      status.textContent =
         "마지막 업데이트: " +
-        time +
+        new Date().toLocaleTimeString(
+          "ko-KR",
+          {
+            hour: "2-digit",
+            minute: "2-digit"
+          }
+        ) +
         " · " +
         news.length +
         "건";
-
     }
 
-    render();
 
-  } catch (error) {
+  } catch (e) {
 
-    console.error(
-      "뉴스 업데이트 실패:",
-      error
-    );
+    console.error("뉴스 업데이트 오류:", e);
 
-    if (statusEl) {
+    const oldNews = loadNews();
 
-      statusEl.textContent =
-        news.length
-          ? "업데이트 실패 · 저장된 기사 표시"
-          : "뉴스를 가져오지 못했습니다.";
+    if (oldNews.length) {
+      news = oldNews;
 
+      if (status) {
+        status.textContent =
+          "네트워크 오류 · 저장된 기사 " +
+          news.length +
+          "건 표시";
+      }
+    } else {
+
+      if (status) {
+        status.textContent =
+          "뉴스를 가져오지 못했습니다. 잠시 후 다시 시도하세요.";
+      }
     }
-
-    render();
   }
+
+  render();
 }
 
-// ------------------------------------------------------------
-// 버튼 연결
-// ------------------------------------------------------------
+
+/* =========================================
+   버튼 연결
+   ========================================= */
 
 const refreshButton =
   document.querySelector("#refresh");
 
 if (refreshButton) {
-
-  refreshButton.addEventListener(
-    "click",
-    refresh
-  );
-
+  refreshButton.onclick = refresh;
 }
+
 
 const quickButton =
   document.querySelector("#quick");
 
 if (quickButton) {
-
-  quickButton.addEventListener(
-    "click",
-    refresh
-  );
-
+  quickButton.onclick = refresh;
 }
+
 
 const searchButton =
   document.querySelector("#search");
 
 if (searchButton) {
-
-  searchButton.addEventListener(
-    "click",
-    function () {
-
-      page = "search";
-
-      render();
-
-      setTimeout(function () {
-
-        const input =
-          document.querySelector("#q");
-
-        if (input) {
-          input.focus();
-        }
-
-      }, 50);
-
-    }
-  );
-
+  searchButton.onclick = () => {
+    page = "search";
+    render();
+  };
 }
 
-// ------------------------------------------------------------
-// 하단 메뉴
-// ------------------------------------------------------------
 
 document
   .querySelectorAll("nav button")
-  .forEach(function (button) {
+  .forEach((button) => {
 
-    button.addEventListener(
-      "click",
-      function () {
-
-        page =
-          button.dataset.p;
-
-        render();
-
-      }
-    );
+    button.onclick = () => {
+      page = button.dataset.p;
+      render();
+    };
 
   });
 
-// ------------------------------------------------------------
-// Service Worker
-// ------------------------------------------------------------
+
+/* =========================================
+   서비스 워커
+   ========================================= */
 
 if ("serviceWorker" in navigator) {
 
   navigator.serviceWorker
-    .register("./sw.js")
-    .then(function () {
-
-      console.log(
-        "Service Worker 등록 완료"
-      );
-
-    })
-    .catch(function (error) {
-
-      console.log(
-        "Service Worker 등록 실패:",
-        error
-      );
-
+    .register("sw.js")
+    .catch((error) => {
+      console.log("Service Worker 오류:", error);
     });
 
 }
 
-// ------------------------------------------------------------
-// 앱 시작
-// ------------------------------------------------------------
 
-// 기존 저장 뉴스가 있으면 먼저 표시
+/* =========================================
+   시작
+   ========================================= */
+
 render();
 
-// 앱을 열었을 때 즉시 업데이트
 refresh();
 
-// 평상시 5분마다 업데이트
-setInterval(
-  refresh,
-  5 * 60 * 1000
-);
 
-// 앱이 다시 화면에 나타날 때 업데이트
-document.addEventListener(
-  "visibilitychange",
-  function () {
+/* 5분마다 자동 업데이트 */
 
-    if (
-      document.visibilityState === "visible"
-    ) {
-      refresh();
-    }
-
-  }
-);
+setInterval(refresh, 5 * 60 * 1000);
