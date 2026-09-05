@@ -20,25 +20,25 @@ self.addEventListener(
 
     event.waitUntil(
 
-      caches
-        .open(CACHE_NAME)
+      caches.open(CACHE_NAME)
         .then(function (cache) {
 
-          return cache.addAll(
-            APP_FILES
-          );
+          return cache.addAll(APP_FILES);
 
         })
 
     );
 
+
     self.skipWaiting();
+
   }
 );
 
 
 /* =========================================
    활성화
+   이전 캐시 삭제
 ========================================= */
 
 self.addEventListener(
@@ -47,21 +47,16 @@ self.addEventListener(
 
     event.waitUntil(
 
-      caches
-        .keys()
+      caches.keys()
         .then(function (keys) {
 
           return Promise.all(
 
             keys.map(function (key) {
 
-              if (
-                key !== CACHE_NAME
-              ) {
+              if (key !== CACHE_NAME) {
 
-                return caches.delete(
-                  key
-                );
+                return caches.delete(key);
 
               }
 
@@ -70,10 +65,14 @@ self.addEventListener(
           );
 
         })
+        .then(function () {
+
+          return self.clients.claim();
+
+        })
 
     );
 
-    self.clients.claim();
   }
 );
 
@@ -86,80 +85,72 @@ self.addEventListener(
   "fetch",
   function (event) {
 
-    const request =
-      event.request;
-
-
     /*
-       GET 이외의 요청은
-       Service Worker가 건드리지 않음
+       뉴스 API / RSS는
+       Service Worker 캐시를 사용하지 않음
     */
 
     if (
-      request.method !== "GET"
-    ) {
-      return;
-    }
-
-
-    const url =
-      new URL(
-        request.url
-      );
-
-
-    /*
-       외부 API / RSS 요청은
-       Service Worker 캐시를 사용하지 않음.
-
-       중요:
-       RSS2JSON
-       AllOrigins
-       Google News
-       등은 항상 네트워크로 요청.
-    */
-
-    if (
-      url.origin !== location.origin
+      event.request.url.includes(
+        "rss2json.com"
+      ) ||
+      event.request.url.includes(
+        "allorigins.win"
+      ) ||
+      event.request.url.includes(
+        "news.google.com"
+      )
     ) {
 
       event.respondWith(
-        fetch(request)
+
+        fetch(event.request)
+          .catch(function () {
+
+            return new Response(
+              "",
+              {
+                status: 503,
+                statusText: "Offline"
+              }
+            );
+
+          })
+
       );
 
       return;
+
     }
 
 
     /*
-       내 사이트 파일은
-       네트워크 우선.
-
-       최신 app.js가 있으면
-       최신 파일을 사용하고,
-       네트워크가 안 되면
-       캐시를 사용.
+       앱 파일은
+       네트워크 우선으로 가져옴
     */
 
     event.respondWith(
 
-      fetch(request)
+      fetch(event.request)
         .then(function (response) {
+
+          /*
+             정상 응답이면 캐시 갱신
+          */
 
           if (
             response &&
-            response.ok
+            response.status === 200
           ) {
 
             const copy =
               response.clone();
 
-            caches
-              .open(CACHE_NAME)
+            caches.open(CACHE_NAME)
               .then(function (cache) {
 
                 cache.put(
-                  request,
+                  event.request,
                   copy
                 );
 
@@ -172,12 +163,18 @@ self.addEventListener(
         })
         .catch(function () {
 
+          /*
+             인터넷이 안 될 경우
+             캐시 사용
+          */
+
           return caches.match(
-            request
+            event.request
           );
 
         })
 
     );
+
   }
 );
