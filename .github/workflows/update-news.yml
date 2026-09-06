@@ -2,7 +2,10 @@ name: Update News
 
 on:
   schedule:
+    # 5분마다 실행
     - cron: "*/5 * * * *"
+
+  # GitHub Actions 화면에서 수동 실행 가능
   workflow_dispatch:
 
 permissions:
@@ -13,21 +16,316 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      # =====================================================
+      # 1. 저장소 가져오기
+      # =====================================================
+      - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Update news
+      # =====================================================
+      # 2. Python 준비
+      # =====================================================
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      # =====================================================
+      # 3. 뉴스 RSS 가져오기
+      # =====================================================
+      - name: Fetch North Korea news
         run: |
-          echo "뉴스 업데이트 실행"
+          python <<'PY'
+          import urllib.request
+          import xml.etree.ElementTree as ET
+          import html
+          import re
+          from datetime import datetime, timezone
 
-      - name: Commit changes
+          SOURCES = [
+              (
+                  "연합뉴스",
+                  "https://www.yna.co.kr/rss/news.xml"
+              ),
+              (
+                  "Google News",
+                  "https://news.google.com/rss/search?q=%EB%B6%81%ED%95%9C&hl=ko&gl=KR&ceid=KR%3Ako"
+              )
+          ]
+
+          KEYWORDS = [
+              "북한",
+              "김정은",
+              "북한군",
+              "북한 미사일",
+              "북한 핵",
+              "북한 외교",
+              "북한 경제",
+              "북한 정치",
+              "대북",
+              "조선민주주의인민공화국"
+          ]
+
+          def clean_text(text):
+              if not text:
+                  return ""
+
+              text = html.unescape(text)
+              text = re.sub(r"<[^>]+>", "", text)
+              text = re.sub(r"\s+", " ", text)
+              return text.strip()
+
+          def escape_yaml(text):
+              text = str(text)
+              text = text.replace("\\", "\\\\")
+              text = text.replace('"', '\\"')
+              text = text.replace("\n", " ")
+              text = text.replace("\r", " ")
+              return text
+
+          articles = []
+          seen = set()
+
+          for source_name, url in SOURCES:
+              try:
+                  request = urllib.request.Request(
+                      url,
+                      headers={
+                          "User-Agent":
+                              "Mozilla/5.0 (compatible; NK-News-Monitor/1.0)"
+                      }
+                  )
+
+                  with urllib.request.urlopen(
+                      request,
+                      timeout=20
+                  ) as response:
+                      data = response.read()
+
+                  root = ET.fromstring(data)
+
+                  # RSS 2.0
+                  items = root.findall(".//item")
+
+                  # Atom 대응
+                  if not items:
+                      items = root.findall(
+                          ".//{http://www.w3.org/2005/Atom}entry"
+                      )
+
+                  for item in items:
+                      title_node = (
+                          item.find("title")
+                          or item.find(
+                              "{http://www.w3.org/2005/Atom}title"
+                          )
+                      )
+
+                      link_node = (
+                          item.find("link")
+                          or item.find(
+                              "{http://www.w3.org/2005/Atom}link"
+                          )
+                      )
+
+                      pub_node = (
+                          item.find("pubDate")
+                          or item.find("published")
+                          or item.find("updated")
+                          or item.find(
+                              "{http://www.w3.org/2005/Atom}published"
+                          )
+                          or item.find(
+                              "{http://www.w3.org/2005/Atom}updated"
+                          )
+                      )
+
+                      title = clean_text(
+                          title_node.text if title_node is not None else ""
+                      )
+
+                      link = ""
+
+                      if link_node is not None:
+                          link = (
+                              link_node.text
+                              or link_node.attrib.get("href", "")
+                          )
+
+                      link = link.strip()
+
+                      published = clean_text(
+                          pub_node.text if pub_node is not None else ""
+                      )
+
+                      if not title:
+                          continue
+
+                      # 북한 관련 기사만 선택
+                      combined = f"{title} {published}"
+
+                      if not any(
+                          keyword.lower() in combined.lower()
+                          for keyword in KEYWORDS
+                      ):
+                          continue
+
+                      # 중복 제거
+                      key = link or title
+
+                      if key in seen:
+                          continue
+
+                      seen.add(key)
+
+                      # 카테고리 자동 분류
+                      category = "정치/외교"
+
+                      if any(
+                          k in title
+                          for k in [
+                              "미사일",
+                              "핵",
+                              "군",
+                              "군사",
+                              "무기",
+                              "발사",
+                              "포병",
+                              "잠수함"
+                          ]
+                      ):
+                          category = "군사/안보"
+
+                      elif any(
+                          k in title
+                          for k in [
+                              "경제",
+                              "시장",
+                              "무역",
+                              "공장",
+                              "산업"
+                          ]
+                      ):
+                          category = "경제"
+
+                      elif any(
+                          k in title
+                          for k in [
+                              "외교",
+                              "미국",
+                              "한국",
+                              "중국",
+                              "러시아",
+                              "정상회담",
+                              "회담"
+                          ]
+                      ):
+                          category = "정치/외교"
+
+                      articles.append(
+                          {
+                              "title": title,
+                              "source": source_name,
+                              "category": category,
+                              "url": link,
+                              "published": published
+                          }
+                      )
+
+              except Exception as e:
+                  print(
+                      f"[WARN] RSS 가져오기 실패: "
+                      f"{source_name}: {e}"
+                  )
+
+          # 최신 기사 우선
+          articles = articles[:30]
+
+          # =================================================
+          # news.yml 작성
+          # =================================================
+
+          now = datetime.now(
+              timezone.utc
+          ).isoformat()
+
+          with open(
+              "news.yml",
+              "w",
+              encoding="utf-8"
+          ) as f:
+
+              f.write("updated: \"")
+              f.write(escape_yaml(now))
+              f.write("\"\n")
+
+              f.write("articles:\n")
+
+              for article in articles:
+
+                  f.write("  - title: \"")
+                  f.write(
+                      escape_yaml(article["title"])
+                  )
+                  f.write("\"\n")
+
+                  f.write("    source: \"")
+                  f.write(
+                      escape_yaml(article["source"])
+                  )
+                  f.write("\"\n")
+
+                  f.write("    category: \"")
+                  f.write(
+                      escape_yaml(article["category"])
+                  )
+                  f.write("\"\n")
+
+                  f.write("    url: \"")
+                  f.write(
+                      escape_yaml(article["url"])
+                  )
+                  f.write("\"\n")
+
+                  f.write("    published: \"")
+                  f.write(
+                      escape_yaml(article["published"])
+                  )
+                  f.write("\"\n")
+
+          print(
+              f"[OK] 뉴스 {len(articles)}건을 "
+              f"news.yml에 저장했습니다."
+          )
+
+          PY
+
+      # =====================================================
+      # 4. 생성된 news.yml 확인
+      # =====================================================
+      - name: Check news.yml
+        run: |
+          echo "=============================="
+          echo "news.yml"
+          echo "=============================="
+          cat news.yml
+          echo "=============================="
+
+      # =====================================================
+      # 5. 변경사항 커밋
+      # =====================================================
+      - name: Commit news update
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add .
-          git diff --cached --quiet || git commit -m "Update news"
+          git add news.yml
 
-      - name: Push changes
-        run: |
-          git push
+          if git diff --cached --quiet; then
+            echo "새로운 뉴스 데이터가 없습니다."
+          else
+            git commit -m "Update news"
+            git push
+          fi
