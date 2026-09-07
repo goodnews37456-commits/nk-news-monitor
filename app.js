@@ -1,462 +1,708 @@
 /* =========================================================
    북한 NEWS Monitor
-   app.js
-   - news.yml에서 기사 읽기
-   - 이미지 사용하지 않음
-   - GitHub Pages 하위 경로 대응
-   - 5분 자동 갱신
-   - 새로고침 버튼 지원
-   - 저장 기사 localStorage
-   - 서비스워커 업데이트 지원
+   app.js - FINAL
+   GitHub Pages / PWA
    ========================================================= */
 
 (() => {
   "use strict";
 
-  const NEWS_FILE = "./news.yml";
-  const REFRESH_INTERVAL = 5 * 60 * 1000;
+  /* =======================================================
+     설정
+     ======================================================= */
 
-  let articles = [];
+  const CONFIG = {
+    NEWS_JSON: "./news.json",
+    NEWS_YML: "./news.yml",
+
+    STORAGE_NEWS: "nk_news_monitor_news",
+    STORAGE_SAVED: "nk_news_monitor_saved",
+    STORAGE_UPDATED: "nk_news_monitor_updated",
+
+    MAX_NEWS: 100
+  };
+
+  /* =======================================================
+     상태
+     ======================================================= */
+
+  let allNews = [];
   let currentCategory = "전체";
-  let refreshTimer = null;
-  let isLoading = false;
+  let searchKeyword = "";
 
-  const STORAGE_KEY = "nk-news-saved-v2";
-
-  /* -------------------------------------------------------
+  /* =======================================================
      DOM
-     ------------------------------------------------------- */
+     ======================================================= */
 
   const $ = (selector) => document.querySelector(selector);
 
-  function getSavedIds() {
-    try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-    } catch {
-      return [];
-    }
+  const newsContainer =
+    $("#newsList") ||
+    $("#news-container") ||
+    $(".news-list") ||
+    $(".content");
+
+  /* =======================================================
+     유틸
+     ======================================================= */
+
+  function escapeHTML(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
   }
 
-  function setSavedIds(ids) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
+  function normalizeText(value) {
+    return String(value ?? "")
+      .replace(/\s+/g, " ")
+      .trim();
   }
 
-  /* -------------------------------------------------------
-     경로
-     ------------------------------------------------------- */
+  function formatDate(value) {
+    if (!value) return "";
 
-  function appUrl(path) {
-    return new URL(path, document.baseURI).href;
-  }
+    const date = new Date(value);
 
-  /* -------------------------------------------------------
-     상태 표시
-     ------------------------------------------------------- */
-
-  function setStatus(message, type = "normal") {
-    const statusText =
-      document.querySelector(".status span") ||
-      document.querySelector(".status");
-
-    if (!statusText) return;
-
-    if (statusText.tagName === "SPAN") {
-      statusText.textContent = message;
-    } else {
-      const span = statusText.querySelector("span");
-      if (span) span.textContent = message;
+    if (Number.isNaN(date.getTime())) {
+      return String(value);
     }
 
-    const dot = document.querySelector(".status i");
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    const hh = String(date.getHours()).padStart(2, "0");
+    const mm = String(date.getMinutes()).padStart(2, "0");
 
-    if (dot) {
-      dot.style.background =
-        type === "error"
-          ? "#ef4444"
-          : type === "loading"
-            ? "#f59e0b"
-            : "#21d66b";
-    }
+    return `${y}-${m}-${d} ${hh}:${mm}`;
   }
 
-  /* -------------------------------------------------------
-     YAML / JSON 파서
-     
-     news.yml은 JSON 형식으로 작성해도 YAML 규격상
-     유효하기 때문에 가장 안정적으로 처리할 수 있습니다.
+  function getTime(value) {
+    if (!value) return 0;
 
-     동시에 간단한 일반 YAML도 처리하도록 보조 파서 포함.
-     ------------------------------------------------------- */
+    const time = new Date(value).getTime();
 
-  function parseNewsFile(text) {
-    const clean = text.replace(/^\uFEFF/, "").trim();
+    return Number.isNaN(time) ? 0 : time;
+  }
 
-    /* 1차: JSON */
-    try {
-      const parsed = JSON.parse(clean);
+  function uniqueNews(items) {
+    const map = new Map();
 
-      if (Array.isArray(parsed)) {
-        return normalizeArticles(parsed);
+    items.forEach((item) => {
+      const key =
+        item.id ||
+        item.link ||
+        `${item.title || ""}_${item.date || ""}`;
+
+      if (!map.has(key)) {
+        map.set(key, item);
+      }
+    });
+
+    return Array.from(map.values());
+  }
+
+  /* =======================================================
+     뉴스 데이터 정규화
+     ======================================================= */
+
+  function normalizeNews(item, index = 0) {
+    if (!item || typeof item !== "object") {
+      return null;
+    }
+
+    const title =
+      item.title ||
+      item.headline ||
+      item.name ||
+      "";
+
+    if (!normalizeText(title)) {
+      return null;
+    }
+
+    const source =
+      item.source ||
+      item.publisher ||
+      item.press ||
+      item.site ||
+      "출처 미상";
+
+    const category =
+      item.category ||
+      item.categoryName ||
+      "기타";
+
+    const date =
+      item.date ||
+      item.pubDate ||
+      item.published ||
+      item.publishedAt ||
+      "";
+
+    const link =
+      item.link ||
+      item.url ||
+      item.href ||
+      "#";
+
+    return {
+      id:
+        item.id ||
+        link ||
+        `news-${index}-${Date.now()}`,
+
+      title: normalizeText(title),
+
+      source: normalizeText(source),
+
+      category: normalizeText(category),
+
+      date: date,
+
+      link: link,
+
+      description:
+        normalizeText(
+          item.description ||
+          item.summary ||
+          ""
+        )
+    };
+  }
+
+  function normalizeNewsArray(data) {
+    let items = [];
+
+    if (Array.isArray(data)) {
+      items = data;
+    } else if (data && Array.isArray(data.news)) {
+      items = data.news;
+    } else if (data && Array.isArray(data.items)) {
+      items = data.items;
+    } else if (data && Array.isArray(data.articles)) {
+      items = data.articles;
+    }
+
+    return items
+      .map((item, index) => normalizeNews(item, index))
+      .filter(Boolean);
+  }
+
+  /* =======================================================
+     JSON 로딩
+     ======================================================= */
+
+  async function loadJSON() {
+    const url =
+      `${CONFIG.NEWS_JSON}?v=${Date.now()}`;
+
+    const response = await fetch(url, {
+      method: "GET",
+      cache: "no-store",
+      headers: {
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache"
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `news.json HTTP ${response.status}`
+      );
+    }
+
+    const data = await response.json();
+
+    const news = normalizeNewsArray(data);
+
+    if (!news.length) {
+      throw new Error("news.json에 뉴스가 없습니다.");
+    }
+
+    return news;
+  }
+
+  /* =======================================================
+     간단한 YAML 로딩
+     -------------------------------------------------------
+     news.yml은 아래와 같은 단순 구조를 지원합니다.
+
+     news:
+       - title: "기사 제목"
+         source: "연합뉴스"
+         category: "정치/외교"
+         date: "2026-09-05 12:00"
+         link: "https://..."
+
+     JSON이 있으면 JSON을 우선 사용합니다.
+     ======================================================= */
+
+  function parseSimpleYAML(text) {
+    const lines = String(text || "")
+      .replace(/\r/g, "")
+      .split("\n");
+
+    const items = [];
+    let current = null;
+
+    function cleanValue(value) {
+      let v = String(value ?? "").trim();
+
+      if (
+        (v.startsWith('"') && v.endsWith('"')) ||
+        (v.startsWith("'") && v.endsWith("'"))
+      ) {
+        v = v.slice(1, -1);
       }
 
-      if (parsed && Array.isArray(parsed.articles)) {
-        return normalizeArticles(parsed.articles);
-      }
-
-      if (parsed && Array.isArray(parsed.news)) {
-        return normalizeArticles(parsed.news);
-      }
-    } catch (_) {
-      /* JSON이 아니면 아래 YAML 방식으로 진행 */
+      return v
+        .replace(/\\"/g, '"')
+        .replace(/\\'/g, "'");
     }
 
-    return parseSimpleYaml(clean);
-  }
+    for (let rawLine of lines) {
+      const line = rawLine.trim();
 
-  function parseSimpleYaml(text) {
-    const lines = text.split(/\r?\n/);
+      if (!line) continue;
 
-    const result = [];
-    let item = null;
+      if (line.startsWith("#")) continue;
 
-    for (const originalLine of lines) {
-      const line = originalLine.trim();
+      if (
+        line === "news:" ||
+        line === "items:" ||
+        line === "articles:"
+      ) {
+        continue;
+      }
 
-      if (!line || line.startsWith("#")) continue;
+      if (line.startsWith("- ")) {
+        if (current) {
+          items.push(current);
+        }
 
-      if (line === "-" || line.startsWith("- ")) {
-        if (item) result.push(item);
+        current = {};
 
-        item = {};
+        const first = line.substring(2).trim();
 
-        const rest = line.substring(1).trim();
+        if (first.includes(":")) {
+          const index = first.indexOf(":");
 
-        if (rest.includes(":")) {
-          const index = rest.indexOf(":");
-          const key = rest.substring(0, index).trim();
-          const value = rest.substring(index + 1).trim();
+          const key = first
+            .substring(0, index)
+            .trim();
 
-          item[key] = cleanYamlValue(value);
+          const value = first
+            .substring(index + 1)
+            .trim();
+
+          current[key] = cleanValue(value);
         }
 
         continue;
       }
 
-      if (!item) continue;
+      if (!current) continue;
 
-      const colon = line.indexOf(":");
+      const colonIndex = line.indexOf(":");
 
-      if (colon === -1) continue;
+      if (colonIndex === -1) continue;
 
-      const key = line.substring(0, colon).trim();
-      const value = line.substring(colon + 1).trim();
+      const key = line
+        .substring(0, colonIndex)
+        .trim();
 
-      item[key] = cleanYamlValue(value);
+      const value = line
+        .substring(colonIndex + 1)
+        .trim();
+
+      current[key] = cleanValue(value);
     }
 
-    if (item) result.push(item);
-
-    return normalizeArticles(result);
-  }
-
-  function cleanYamlValue(value) {
-    let v = value.trim();
-
-    if (
-      (v.startsWith('"') && v.endsWith('"')) ||
-      (v.startsWith("'") && v.endsWith("'"))
-    ) {
-      v = v.substring(1, v.length - 1);
+    if (current) {
+      items.push(current);
     }
 
-    return v
-      .replace(/\\"/g, '"')
-      .replace(/\\n/g, "\n");
+    return items;
   }
 
-  /* -------------------------------------------------------
-     기사 데이터 정규화
-     ------------------------------------------------------- */
+  async function loadYAML() {
+    const url =
+      `${CONFIG.NEWS_YML}?v=${Date.now()}`;
 
-  function normalizeArticles(list) {
-    if (!Array.isArray(list)) return [];
+    const response = await fetch(url, {
+      method: "GET",
+      cache: "no-store",
+      headers: {
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache"
+      }
+    });
 
-    return list
-      .map((item, index) => {
-        const title =
-          item.title ||
-          item.headline ||
-          item.name ||
-          "";
-
-        const source =
-          item.source ||
-          item.publisher ||
-          item.press ||
-          "출처 미상";
-
-        const url =
-          item.url ||
-          item.link ||
-          item.href ||
-          "#";
-
-        const category =
-          item.category ||
-          item.section ||
-          "기타";
-
-        const date =
-          item.date ||
-          item.published ||
-          item.pubDate ||
-          item.time ||
-          "";
-
-        const id =
-          item.id ||
-          makeId(`${title}|${source}|${date}|${index}`);
-
-        return {
-          id: String(id),
-          title: String(title).trim(),
-          source: String(source).trim(),
-          url: String(url).trim(),
-          category: String(category).trim(),
-          date: String(date).trim()
-        };
-      })
-      .filter((item) => item.title);
-  }
-
-  function makeId(value) {
-    let hash = 0;
-
-    for (let i = 0; i < value.length; i++) {
-      hash = (hash << 5) - hash + value.charCodeAt(i);
-      hash |= 0;
+    if (!response.ok) {
+      throw new Error(
+        `news.yml HTTP ${response.status}`
+      );
     }
 
-    return `news-${Math.abs(hash)}`;
+    const text = await response.text();
+
+    const data = parseSimpleYAML(text);
+
+    const news = normalizeNewsArray(data);
+
+    if (!news.length) {
+      throw new Error("news.yml에 뉴스가 없습니다.");
+    }
+
+    return news;
   }
 
-  /* -------------------------------------------------------
-     news.yml 가져오기
-     ------------------------------------------------------- */
+  /* =======================================================
+     로컬 저장 뉴스
+     ======================================================= */
 
-  async function loadNews(options = {}) {
-    if (isLoading) return;
-
-    isLoading = true;
-
-    setStatus("최신 뉴스 확인 중...", "loading");
-
+  function loadLocalNews() {
     try {
-      /*
-       * cache: no-store
-       *
-       * 서비스워커가 news.yml을 오래된 캐시에서
-       * 가져오지 않도록 요청 단계에서도 캐시를 사용하지 않습니다.
-       */
-      const url =
-        `${appUrl(NEWS_FILE)}?v=${Date.now()}`;
+      const raw =
+        localStorage.getItem(CONFIG.STORAGE_NEWS);
 
-      const response = await fetch(url, {
-        method: "GET",
-        cache: "no-store",
-        headers: {
-          "Cache-Control": "no-cache",
-          "Pragma": "no-cache"
-        }
-      });
+      if (!raw) return [];
 
-      if (!response.ok) {
-        throw new Error(
-          `news.yml HTTP ${response.status}`
-        );
-      }
+      const data = JSON.parse(raw);
 
-      const text = await response.text();
-
-      const loaded = parseNewsFile(text);
-
-      if (!loaded.length) {
-        throw new Error("기사 데이터가 없습니다.");
-      }
-
-      articles = loaded;
-
-      render();
-
-      const now = new Date();
-
-      setStatus(
-        `마지막 업데이트: ${formatTime(now)}`,
-        "normal"
+      return normalizeNewsArray(data);
+    } catch (error) {
+      console.warn(
+        "로컬 뉴스 불러오기 실패:",
+        error
       );
 
-    } catch (error) {
-      console.error("[NEWS]", error);
-
-      /*
-       * 기존 기사가 있으면 화면은 유지합니다.
-       */
-      if (articles.length) {
-        setStatus(
-          "업데이트 실패 · 기존 기사 표시",
-          "error"
-        );
-      } else {
-        setStatus(
-          "연결 오류 · 저장된 기사 표시",
-          "error"
-        );
-
-        renderEmpty(
-          "뉴스 데이터를 불러오지 못했습니다.<br>" +
-          "잠시 후 다시 새로고침해 주세요."
-        );
-      }
-    } finally {
-      isLoading = false;
+      return [];
     }
   }
 
-  /* -------------------------------------------------------
-     시간
-     ------------------------------------------------------- */
-
-  function formatTime(date) {
-    return date.toLocaleTimeString("ko-KR", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false
-    });
+  function saveLocalNews(news) {
+    try {
+      localStorage.setItem(
+        CONFIG.STORAGE_NEWS,
+        JSON.stringify(news)
+      );
+    } catch (error) {
+      console.warn(
+        "로컬 뉴스 저장 실패:",
+        error
+      );
+    }
   }
 
-  /* -------------------------------------------------------
+  /* =======================================================
+     저장 기사
+     ======================================================= */
+
+  function getSavedIds() {
+    try {
+      const raw =
+        localStorage.getItem(
+          CONFIG.STORAGE_SAVED
+        );
+
+      if (!raw) return [];
+
+      const data = JSON.parse(raw);
+
+      return Array.isArray(data)
+        ? data
+        : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveSavedIds(ids) {
+    localStorage.setItem(
+      CONFIG.STORAGE_SAVED,
+      JSON.stringify(ids)
+    );
+  }
+
+  function isSaved(id) {
+    return getSavedIds().includes(id);
+  }
+
+  function toggleSaved(id) {
+    const ids = getSavedIds();
+
+    const index = ids.indexOf(id);
+
+    if (index >= 0) {
+      ids.splice(index, 1);
+    } else {
+      ids.push(id);
+    }
+
+    saveSavedIds(ids);
+
+    renderNews();
+  }
+
+  /* =======================================================
+     업데이트 시간
+     ======================================================= */
+
+  function saveUpdateTime(date = new Date()) {
+    try {
+      localStorage.setItem(
+        CONFIG.STORAGE_UPDATED,
+        date.toISOString()
+      );
+    } catch {}
+  }
+
+  function getUpdateTime() {
+    try {
+      return localStorage.getItem(
+        CONFIG.STORAGE_UPDATED
+      );
+    } catch {
+      return null;
+    }
+  }
+
+  /* =======================================================
+     상태 표시
+     ======================================================= */
+
+  function setStatus(text, type = "normal") {
+    const status =
+      $(".status");
+
+    if (!status) return;
+
+    const textNodes =
+      status.querySelectorAll(
+        "span, strong, b, em"
+      );
+
+    let target = null;
+
+    for (const node of textNodes) {
+      if (
+        node !== status.querySelector("button")
+      ) {
+        target = node;
+        break;
+      }
+    }
+
+    if (!target) {
+      target = status;
+    }
+
+    target.textContent = text;
+
+    status.dataset.status = type;
+  }
+
+  function updateLastUpdatedText() {
+    const time = getUpdateTime();
+
+    if (!time) return;
+
+    const formatted =
+      formatDate(time);
+
+    const status =
+      $(".status");
+
+    if (!status) return;
+
+    const candidates =
+      status.querySelectorAll(
+        "span, strong, b, em"
+      );
+
+    for (const node of candidates) {
+      if (
+        !node.querySelector("button") &&
+        !node.closest("button")
+      ) {
+        node.textContent =
+          `마지막 업데이트: ${formatted}`;
+
+        break;
+      }
+    }
+  }
+
+  /* =======================================================
+     새 기사 알림
+     ======================================================= */
+
+  function renderNotice(count = 0) {
+    const notice =
+      $(".notice");
+
+    if (!notice) return;
+
+    const title =
+      notice.querySelector("b");
+
+    const muted =
+      notice.querySelector(".muted");
+
+    if (title) {
+      if (count > 0) {
+        title.textContent =
+          `새로운 기사가 ${count}건 도착했습니다`;
+      } else {
+        title.textContent =
+          "최신 북한 관련 뉴스";
+      }
+    }
+
+    if (muted) {
+      muted.textContent =
+        count > 0
+          ? "새로 업데이트된 기사를 확인하세요"
+          : "최신 북한 관련 뉴스를 확인하세요";
+    }
+  }
+
+  /* =======================================================
      카테고리
-     ------------------------------------------------------- */
+     ======================================================= */
 
   function getCategories() {
-    const categories = new Set(["전체"]);
+    const categories = [
+      "전체"
+    ];
 
-    articles.forEach((article) => {
-      if (article.category) {
-        categories.add(article.category);
+    allNews.forEach((item) => {
+      if (
+        item.category &&
+        !categories.includes(item.category)
+      ) {
+        categories.push(item.category);
       }
     });
 
-    return [...categories];
+    return categories;
   }
 
   function renderCategories() {
-    const container =
-      document.querySelector(".cats");
+    let container =
+      $(".cats");
 
     if (!container) return;
 
     container.innerHTML = "";
 
-    getCategories().forEach((category) => {
-      const button = document.createElement("button");
+    const categories =
+      getCategories();
+
+    categories.forEach((category) => {
+      const button =
+        document.createElement("button");
+
+      button.type = "button";
 
       button.className =
         "catBtn" +
-        (category === currentCategory ? " on" : "");
+        (
+          category === currentCategory
+            ? " on"
+            : ""
+        );
 
-      button.textContent = category;
+      button.textContent =
+        category;
 
-      button.addEventListener("click", () => {
-        currentCategory = category;
-        renderCategories();
-        renderArticles();
-      });
+      button.addEventListener(
+        "click",
+        () => {
+          currentCategory =
+            category;
+
+          renderCategories();
+          renderNews();
+        }
+      );
 
       container.appendChild(button);
     });
   }
 
-  /* -------------------------------------------------------
-     기사 렌더링
-     ------------------------------------------------------- */
+  /* =======================================================
+     필터
+     ======================================================= */
 
-  function render() {
-    renderCategories();
-    renderArticles();
-  }
+  function getFilteredNews() {
+    let result =
+      [...allNews];
 
-  function renderArticles() {
-    const content =
-      document.querySelector(".content");
-
-    if (!content) return;
-
-    let list =
-      currentCategory === "전체"
-        ? articles
-        : articles.filter(
-            (article) =>
-              article.category === currentCategory
-          );
-
-    /*
-     * 기존 HTML에 news-list가 없더라도 자동 생성
-     */
-    let listContainer =
-      document.querySelector("#news-list");
-
-    if (!listContainer) {
-      listContainer = document.createElement("div");
-      listContainer.id = "news-list";
-      listContainer.className = "news-list";
-
-      const categories =
-        document.querySelector(".cats");
-
-      if (categories) {
-        categories.after(listContainer);
-      } else {
-        content.appendChild(listContainer);
-      }
+    if (
+      currentCategory !== "전체"
+    ) {
+      result =
+        result.filter(
+          (item) =>
+            item.category ===
+            currentCategory
+        );
     }
 
-    listContainer.innerHTML = "";
+    if (searchKeyword) {
+      const keyword =
+        searchKeyword.toLowerCase();
 
-    if (!list.length) {
-      listContainer.innerHTML =
-        `<div class="empty">
-          표시할 기사가 없습니다.
-        </div>`;
+      result =
+        result.filter((item) => {
+          const text =
+            [
+              item.title,
+              item.source,
+              item.category,
+              item.description
+            ]
+              .join(" ")
+              .toLowerCase();
 
-      return;
+          return text.includes(keyword);
+        });
     }
 
-    list.forEach((article) => {
-      listContainer.appendChild(
-        createArticleCard(article)
-      );
-    });
+    return result;
   }
 
-  function createArticleCard(article) {
-    const card = document.createElement("article");
+  /* =======================================================
+     기사 카드
+     -------------------------------------------------------
+     이미지 없음
+     ======================================================= */
 
-    card.className = "card news-card";
+  function createNewsCard(item) {
+    const article =
+      document.createElement("article");
+
+    article.className =
+      "card news-card";
+
+    article.dataset.id =
+      item.id;
 
     const saved =
-      getSavedIds().includes(article.id);
+      isSaved(item.id);
 
-    /*
-     * 이미지 영역을 아예 만들지 않습니다.
-     */
-    card.innerHTML = `
+    article.innerHTML = `
       <div class="news-text">
 
         <div class="card-top">
 
           <span class="category-badge">
-            ${escapeHtml(article.category)}
+            ${escapeHTML(item.category)}
           </span>
 
           <button
@@ -470,17 +716,17 @@
 
         </div>
 
-        <h2 class="news-title">
-          ${escapeHtml(article.title)}
-        </h2>
+        <div class="news-title">
+          ${escapeHTML(item.title)}
+        </div>
 
         <div class="source">
-          <span>
-            ${escapeHtml(article.source)}
-          </span>
+          ${escapeHTML(item.source)}
           ${
-            article.date
-              ? ` · ${escapeHtml(formatDate(article.date))}`
+            item.date
+              ? ` · ${escapeHTML(
+                  formatDate(item.date)
+                )}`
               : ""
           }
         </div>
@@ -489,157 +735,545 @@
     `;
 
     const saveButton =
-      card.querySelector(".save");
+      article.querySelector(
+        ".save"
+      );
 
     saveButton.addEventListener(
       "click",
       (event) => {
         event.stopPropagation();
-        toggleSaved(article.id);
-        renderArticles();
+
+        toggleSaved(item.id);
       }
     );
 
-    card.addEventListener("click", () => {
-      if (
-        article.url &&
-        article.url !== "#"
-      ) {
-        window.open(
-          article.url,
-          "_blank",
-          "noopener,noreferrer"
-        );
+    article.addEventListener(
+      "click",
+      () => {
+        if (
+          item.link &&
+          item.link !== "#"
+        ) {
+          window.open(
+            item.link,
+            "_blank",
+            "noopener,noreferrer"
+          );
+        }
       }
-    });
+    );
 
-    return card;
+    return article;
   }
 
-  function formatDate(value) {
-    if (!value) return "";
+  /* =======================================================
+     뉴스 표시
+     ======================================================= */
 
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-      return value;
-    }
-
-    return date.toLocaleString("ko-KR", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false
-    });
-  }
-
-  function escapeHtml(value) {
-    return String(value)
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
-  }
-
-  /* -------------------------------------------------------
-     저장
-     ------------------------------------------------------- */
-
-  function toggleSaved(id) {
-    const ids = getSavedIds();
-
-    const index = ids.indexOf(id);
-
-    if (index >= 0) {
-      ids.splice(index, 1);
-    } else {
-      ids.push(id);
-    }
-
-    setSavedIds(ids);
-  }
-
-  /* -------------------------------------------------------
-     빈 화면
-     ------------------------------------------------------- */
-
-  function renderEmpty(message) {
-    const list =
-      document.querySelector("#news-list");
-
-    if (!list) return;
-
-    list.innerHTML = `
-      <div class="empty">
-        ${message}
-      </div>
-    `;
-  }
-
-  /* -------------------------------------------------------
-     새로고침 버튼
-     ------------------------------------------------------- */
-
-  function setupRefreshButtons() {
-    const buttons =
-      document.querySelectorAll(
-        ".actions button, #refreshBtn, [data-action='refresh']"
+  function renderNews() {
+    const container =
+      document.querySelector(
+        "#newsList"
+      ) ||
+      document.querySelector(
+        ".news-list"
+      ) ||
+      document.querySelector(
+        ".content"
       );
 
-    buttons.forEach((button) => {
-      button.addEventListener("click", () => {
-        loadNews({
-          force: true
-        });
-      });
-    });
+    if (!container) {
+      console.warn(
+        "뉴스 표시 영역을 찾지 못했습니다."
+      );
 
-    /*
-     * 기존 화면의 "지금 새로고침" 버튼도 대응
-     */
-    document.addEventListener("click", (event) => {
-      const target =
-        event.target.closest("button");
-
-      if (!target) return;
-
-      const text =
-        target.textContent.trim();
-
-      if (
-        text.includes("새로고침") ||
-        text.includes("갱신")
-      ) {
-        loadNews({
-          force: true
-        });
-      }
-    });
-  }
-
-  /* -------------------------------------------------------
-     자동 갱신
-     ------------------------------------------------------- */
-
-  function startAutoRefresh() {
-    if (refreshTimer) {
-      clearInterval(refreshTimer);
+      return;
     }
 
-    refreshTimer = setInterval(() => {
-      loadNews();
-    }, REFRESH_INTERVAL);
+    let list =
+      getFilteredNews();
+
+    list.sort(
+      (a, b) =>
+        getTime(b.date) -
+        getTime(a.date)
+    );
+
+    /*
+     * 기존 HTML에서 .content를 뉴스 컨테이너로
+     * 사용하는 경우 헤더/notice/cats를 지우면 안 됩니다.
+     */
+
+    let listContainer =
+      document.querySelector(
+        "#newsList"
+      ) ||
+      document.querySelector(
+        ".news-list"
+      );
+
+    if (!listContainer) {
+      listContainer =
+        document.createElement(
+          "div"
+        );
+
+      listContainer.id =
+        "newsList";
+
+      listContainer.className =
+        "news-list";
+
+      const cats =
+        document.querySelector(
+          ".cats"
+        );
+
+      if (cats) {
+        cats.after(listContainer);
+      } else {
+        container.appendChild(
+          listContainer
+        );
+      }
+    }
+
+    listContainer.innerHTML =
+      "";
+
+    if (!list.length) {
+      const empty =
+        document.createElement(
+          "div"
+        );
+
+      empty.className =
+        "empty";
+
+      empty.innerHTML = `
+        <div>표시할 기사가 없습니다.</div>
+        <small>
+          새로고침하거나 다른 카테고리를 선택해 주세요.
+        </small>
+      `;
+
+      listContainer.appendChild(
+        empty
+      );
+
+      renderNotice(0);
+
+      return;
+    }
+
+    list.forEach((item) => {
+      listContainer.appendChild(
+        createNewsCard(item)
+      );
+    });
+
+    renderNotice(
+      Math.min(list.length, 99)
+    );
   }
 
-  /* -------------------------------------------------------
-     서비스 워커
-     ------------------------------------------------------- */
+  /* =======================================================
+     검색
+     ======================================================= */
+
+  function setupSearch() {
+    const searchButton =
+      document.querySelector(
+        ".actions button:first-child"
+      );
+
+    if (!searchButton) return;
+
+    searchButton.addEventListener(
+      "click",
+      () => {
+        const keyword =
+          window.prompt(
+            "검색할 기사를 입력하세요.",
+            searchKeyword
+          );
+
+        if (
+          keyword === null
+        ) {
+          return;
+        }
+
+        searchKeyword =
+          keyword.trim();
+
+        renderNews();
+      }
+    );
+  }
+
+  /* =======================================================
+     새로고침 버튼
+     ======================================================= */
+
+  function setupRefresh() {
+    const buttons =
+      document.querySelectorAll(
+        ".actions button"
+      );
+
+    buttons.forEach(
+      (button) => {
+        const label =
+          `${button.textContent} ${
+            button.getAttribute(
+              "aria-label"
+            ) || ""
+          } ${
+            button.title || ""
+          }`;
+
+        if (
+          label.includes("새로") ||
+          label.includes("refresh") ||
+          label.includes("갱신")
+        ) {
+          button.addEventListener(
+            "click",
+            () => {
+              refreshNews(true);
+            }
+          );
+        }
+      }
+    );
+
+    const statusButton =
+      document.querySelector(
+        ".status button"
+      );
+
+    if (statusButton) {
+      statusButton.addEventListener(
+        "click",
+        () => {
+          refreshNews(true);
+        }
+      );
+    }
+  }
+
+  /* =======================================================
+     데이터 병합
+     ======================================================= */
+
+  function mergeNews(newItems) {
+    const oldItems =
+      allNews.length
+        ? allNews
+        : loadLocalNews();
+
+    const merged =
+      uniqueNews([
+        ...newItems,
+        ...oldItems
+      ]);
+
+    merged.sort(
+      (a, b) =>
+        getTime(b.date) -
+        getTime(a.date)
+    );
+
+    allNews =
+      merged.slice(
+        0,
+        CONFIG.MAX_NEWS
+      );
+
+    saveLocalNews(allNews);
+  }
+
+  /* =======================================================
+     뉴스 새로고침
+     ======================================================= */
+
+  async function refreshNews(
+    showLoading = true
+  ) {
+    if (showLoading) {
+      setStatus(
+        "최신 뉴스 확인 중...",
+        "loading"
+      );
+    }
+
+    try {
+      let news = [];
+
+      /*
+       * 1순위: news.json
+       */
+      try {
+        news =
+          await loadJSON();
+
+        console.log(
+          "news.json 로딩 성공:",
+          news.length
+        );
+      } catch (jsonError) {
+        console.warn(
+          "news.json 로딩 실패:",
+          jsonError
+        );
+
+        /*
+         * 2순위: news.yml
+         */
+        try {
+          news =
+            await loadYAML();
+
+          console.log(
+            "news.yml 로딩 성공:",
+            news.length
+          );
+        } catch (yamlError) {
+          console.warn(
+            "news.yml 로딩 실패:",
+            yamlError
+          );
+
+          throw new Error(
+            "뉴스 데이터 파일을 불러올 수 없습니다."
+          );
+        }
+      }
+
+      mergeNews(news);
+
+      saveUpdateTime();
+
+      renderCategories();
+      renderNews();
+      updateLastUpdatedText();
+
+      setStatus(
+        `뉴스 ${allNews.length}건 업데이트 완료`,
+        "success"
+      );
+
+      /*
+       * 서비스워커에게 캐시 정리를 요청
+       */
+      if (
+        navigator.serviceWorker &&
+        navigator.serviceWorker.controller
+      ) {
+        navigator.serviceWorker.controller.postMessage(
+          {
+            type: "CLEAR_NEWS_CACHE"
+          }
+        );
+      }
+
+      return true;
+
+    } catch (error) {
+      console.error(
+        "뉴스 업데이트 오류:",
+        error
+      );
+
+      /*
+       * 네트워크 오류라도 기존 뉴스가 있으면 표시
+       */
+      const localNews =
+        loadLocalNews();
+
+      if (localNews.length) {
+        allNews =
+          localNews;
+
+        renderCategories();
+        renderNews();
+        updateLastUpdatedText();
+
+        setStatus(
+          "연결 오류 · 저장된 기사 표시",
+          "offline"
+        );
+
+        return false;
+      }
+
+      allNews = [];
+
+      renderCategories();
+      renderNews();
+
+      setStatus(
+        "뉴스를 불러오지 못했습니다",
+        "error"
+      );
+
+      return false;
+    }
+  }
+
+  /* =======================================================
+     저장됨 화면
+     ======================================================= */
+
+  function showSavedNews() {
+    const ids =
+      getSavedIds();
+
+    const saved =
+      allNews.filter(
+        (item) =>
+          ids.includes(item.id)
+      );
+
+    const listContainer =
+      document.querySelector(
+        "#newsList"
+      ) ||
+      document.querySelector(
+        ".news-list"
+      );
+
+    if (!listContainer) return;
+
+    listContainer.innerHTML =
+      "";
+
+    if (!saved.length) {
+      listContainer.innerHTML = `
+        <div class="empty">
+          <div>저장된 기사가 없습니다.</div>
+          <small>
+            하트 버튼을 눌러 기사를 저장해 보세요.
+          </small>
+        </div>
+      `;
+
+      return;
+    }
+
+    saved.forEach((item) => {
+      listContainer.appendChild(
+        createNewsCard(item)
+      );
+    });
+  }
+
+  /* =======================================================
+     하단 메뉴
+     ======================================================= */
+
+  function setupNavigation() {
+    const navButtons =
+      document.querySelectorAll(
+        "nav button"
+      );
+
+    navButtons.forEach(
+      (button, index) => {
+        button.addEventListener(
+          "click",
+          () => {
+
+            navButtons.forEach(
+              (btn) =>
+                btn.classList.remove(
+                  "active"
+                )
+            );
+
+            button.classList.add(
+              "active"
+            );
+
+            /*
+             * 홈
+             */
+            if (index === 0) {
+              currentCategory =
+                "전체";
+
+              searchKeyword =
+                "";
+
+              renderCategories();
+              renderNews();
+
+              return;
+            }
+
+            /*
+             * 뉴스
+             */
+            if (index === 1) {
+              currentCategory =
+                "전체";
+
+              renderCategories();
+              renderNews();
+
+              return;
+            }
+
+            /*
+             * 저장됨
+             */
+            if (index === 2) {
+              showSavedNews();
+
+              return;
+            }
+
+            /*
+             * 알림
+             */
+            if (index === 3) {
+              alert(
+                "새로운 뉴스 알림은 최신 뉴스 업데이트 상태를 기준으로 표시됩니다."
+              );
+
+              return;
+            }
+
+            /*
+             * 설정
+             */
+            if (index === 4) {
+              alert(
+                "설정 기능은 현재 기본 PWA 설정을 사용합니다."
+              );
+
+              return;
+            }
+          }
+        );
+      }
+    );
+  }
+
+  /* =======================================================
+     서비스워커 등록
+     ======================================================= */
 
   async function registerServiceWorker() {
-    if (!("serviceWorker" in navigator)) {
+    if (
+      !("serviceWorker" in navigator)
+    ) {
+      console.warn(
+        "이 브라우저는 Service Worker를 지원하지 않습니다."
+      );
+
       return;
     }
 
@@ -653,76 +1287,115 @@
         );
 
       console.log(
-        "[SW] registered:",
+        "Service Worker 등록 완료:",
         registration.scope
       );
 
       /*
-       * 새 sw.js가 있으면 즉시 업데이트 확인
+       * 새 서비스워커 확인
        */
-      await registration.update();
-
-      /*
-       * 새 SW가 waiting 상태라면 바로 활성화 요청
-       */
-      if (registration.waiting) {
-        registration.waiting.postMessage({
-          type: "SKIP_WAITING"
-        });
-      }
-
-      registration.addEventListener(
-        "updatefound",
-        () => {
-          const worker =
-            registration.installing;
-
-          if (!worker) return;
-
-          worker.addEventListener(
-            "statechange",
-            () => {
-              if (
-                worker.state === "installed" &&
-                navigator.serviceWorker.controller
-              ) {
-                worker.postMessage({
-                  type: "SKIP_WAITING"
-                });
-              }
-            }
-          );
-        }
-      );
+      registration.update()
+        .catch(() => {});
 
     } catch (error) {
-      console.error(
-        "[SW] registration failed:",
+      console.warn(
+        "Service Worker 등록 실패:",
         error
       );
     }
   }
 
-  /* -------------------------------------------------------
-     앱 시작
-     ------------------------------------------------------- */
+  /* =======================================================
+     앱 초기화
+     ======================================================= */
 
   async function init() {
-    setupRefreshButtons();
-
-    startAutoRefresh();
+    console.log(
+      "북한 NEWS Monitor 시작"
+    );
 
     /*
-     * 서비스워커와 뉴스 파일 로딩을 분리합니다.
-     * SW가 실패해도 뉴스 앱 자체는 계속 실행됩니다.
+     * 우선 저장된 뉴스 표시
+     * → 화면이 빈 상태로 오래 기다리지 않음
      */
-    registerServiceWorker();
+    const localNews =
+      loadLocalNews();
 
-    await loadNews();
+    if (localNews.length) {
+      allNews =
+        localNews;
+
+      renderCategories();
+      renderNews();
+      updateLastUpdatedText();
+
+      setStatus(
+        "저장된 기사 표시 · 최신 뉴스 확인 중...",
+        "loading"
+      );
+    } else {
+      setStatus(
+        "최신 뉴스 확인 중...",
+        "loading"
+      );
+    }
+
+    setupSearch();
+    setupRefresh();
+    setupNavigation();
+
+    await registerServiceWorker();
+
+    /*
+     * 실제 최신 데이터 확인
+     */
+    await refreshNews(
+      false
+    );
+
+    /*
+     * 5분마다 자동 업데이트
+     */
+    setInterval(
+      () => {
+        refreshNews(false);
+      },
+      5 * 60 * 1000
+    );
+
+    /*
+     * 앱으로 다시 돌아왔을 때 업데이트
+     */
+    document.addEventListener(
+      "visibilitychange",
+      () => {
+        if (
+          document.visibilityState ===
+          "visible"
+        ) {
+          refreshNews(false);
+        }
+      }
+    );
+
+    /*
+     * 온라인 복귀
+     */
+    window.addEventListener(
+      "online",
+      () => {
+        refreshNews(true);
+      }
+    );
   }
 
+  /* =======================================================
+     실행
+     ======================================================= */
+
   if (
-    document.readyState === "loading"
+    document.readyState ===
+    "loading"
   ) {
     document.addEventListener(
       "DOMContentLoaded",
